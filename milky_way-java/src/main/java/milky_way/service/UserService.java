@@ -1,5 +1,8 @@
 package milky_way.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import milky_way.dto.request.UserRequest;
 import milky_way.dto.response.UserResponse;
 import milky_way.entity.Role;
@@ -29,23 +32,8 @@ public class UserService {
     @Autowired
     private RoleRepository roleRepository;
 
-    public UserResponse registerUser(UserRequest userRequest){
-        User user = userMapper.toUser(userRequest);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        Role role = Role.builder()
-                .name(milky_way.utils.Role.USER.getValue())
-                .description("Default role for new users")
-                .build();
-        user.setRoles(Collections.singleton(role));
-        User saveUser = userRepository.save(user);
-        return userMapper.toUserResponse(saveUser);
-    }
+    @PersistenceContext
+    private EntityManager entityManager;
 
-    public Optional<UserResponse> loginUser(UserRequest userRequest){
-        Optional<User> user = userRepository.findByEmail(userRequest.getEmail());
-        if(user.isPresent() && passwordEncoder.matches(userRequest.getPassword(), user.get().getPassword())){
-            return Optional.of(userMapper.toUserResponse(user.get()));
-        }
-        return Optional.empty();
-    }
+
 }
