@@ -6,6 +6,8 @@ import milky_way.dto.response.AuthResponse;
 import milky_way.dto.response.UserResponse;
 import milky_way.entity.Role;
 import milky_way.entity.User;
+import milky_way.exception.AppException;
+import milky_way.exception.ErrorCode;
 import milky_way.mapper.UserMapper;
 import milky_way.repository.UserRepository;
 import milky_way.utils.JwtTokenProvider;
@@ -46,16 +48,17 @@ public class AuthService {
         return userMapper.toUserResponse(saveUser);
     }
 
-    public Optional<UserResponse> loginUser(UserRequestLogin userRequest){
+    public Optional<AuthResponse> loginUser(UserRequestLogin userRequest){
         Optional<User> user = Optional.ofNullable(userRepository.findByEmail(userRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email không tồn tại")));
-        if(!user.isPresent() && !passwordEncoder.matches(userRequest.getPassword(), user.get().getPassword())){
-            throw new RuntimeException("Mật khẩu không chính xác");
+                .orElseThrow(() -> new AppException(ErrorCode.EMAIL_DOSE_NOT_EXIST)));
+        if(!passwordEncoder.matches(userRequest.getPassword(), user.get().getPassword())){
+            throw new AppException(ErrorCode.PASSWORD_INCORRECT);
         }
         String token = jwtTokenProvider.generateToken(user.get().getEmail());
         AuthResponse authResponse = new AuthResponse();
         authResponse.setToken(token);
 
-        return authResponse;
+        return Optional.of(authResponse);
     }
+
 }

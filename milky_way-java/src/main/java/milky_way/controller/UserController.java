@@ -2,6 +2,7 @@ package milky_way.controller;
 
 import milky_way.dto.request.UserRequest;
 import milky_way.dto.request.UserRequestLogin;
+import milky_way.dto.response.AuthResponse;
 import milky_way.dto.response.UserResponse;
 import milky_way.service.AuthService;
 import milky_way.service.UserService;
@@ -27,7 +28,7 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody UserRequestLogin userRequest){
-        Optional<UserResponse> userResponse = authService.loginUser(userRequest);
+        Optional<AuthResponse> userResponse = authService.loginUser(userRequest);
         if(userResponse.isPresent()){
             return ResponseEntity.ok("Login successful!");
         }
