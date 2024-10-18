@@ -2,9 +2,12 @@ package milky_way.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Set;
 
 @Entity
@@ -49,4 +52,10 @@ public class User {
     private Cart cart;
     @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
     private Seller sellers;
+
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return roles.stream()
+                .map(role -> new SimpleGrantedAuthority(role.getName()))
+                .toList();
+    }
 }
