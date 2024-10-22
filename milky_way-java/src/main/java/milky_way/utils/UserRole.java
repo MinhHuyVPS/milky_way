@@ -1,12 +1,13 @@
 package milky_way.utils;
 
-public enum Role {
+public enum UserRole {
     ADMIN("admin"),
+    SELLER("seller"),
     USER("user");
 
     private final String value;
 
-    Role(String value){
+    UserRole(String value){
         this.value = value;
     }
 

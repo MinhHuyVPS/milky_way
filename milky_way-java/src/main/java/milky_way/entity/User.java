@@ -53,9 +53,9 @@ public class User {
     @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
     private Seller sellers;
 
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .toList();
-    }
+        public Collection<? extends GrantedAuthority> getAuthorities() {
+            return roles.stream()
+                    .map(role -> new SimpleGrantedAuthority(role.getName()))
+                    .toList();
+        }
 }

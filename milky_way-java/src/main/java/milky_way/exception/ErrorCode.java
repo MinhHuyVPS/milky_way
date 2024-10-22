@@ -16,7 +16,9 @@ public enum ErrorCode {
     UNAUTHORIZED(401, "Unauthorized", HttpStatus.UNAUTHORIZED),
     ACCESS_DENIED(403, "Access Denied", HttpStatus.FORBIDDEN),
     PASSWORD_INCORRECT(406, "password is incorrect", HttpStatus.BAD_REQUEST),
-    EMAIL_DOSE_NOT_EXIST(405, "email dose not exist", HttpStatus.NOT_FOUND);
+    EMAIL_EXIST(407,"Email has been used!", HttpStatus.NOT_FOUND),
+    INVALID_REFRESH_TOKEN(408,"invalid refresh token", HttpStatus.FORBIDDEN),
+    EMAIL_NOT_EXIST(405, "Email not exist", HttpStatus.NOT_FOUND);
     private final int code;
     private final String message;
     private final HttpStatus httpStatus;

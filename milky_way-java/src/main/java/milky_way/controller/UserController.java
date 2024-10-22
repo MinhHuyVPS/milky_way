@@ -18,25 +18,5 @@ import java.util.Optional;
 @RestController
 @RequestMapping("api/v1/user")
 public class UserController {
-    @Autowired
-    private AuthService authService;
 
-    @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@RequestBody UserRequest userRequest){
-        return ResponseEntity.ok(authService.registerUser(userRequest));
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody UserRequestLogin userRequest){
-        Optional<AuthResponse> userResponse = authService.loginUser(userRequest);
-        if(userResponse.isPresent()){
-            return ResponseEntity.ok("Login successful!");
-        }
-        return ResponseEntity.status(401).body("Invalid credentials!");
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<String> logout(){
-        return ResponseEntity.ok("Logout successful!");
-    }
 }
