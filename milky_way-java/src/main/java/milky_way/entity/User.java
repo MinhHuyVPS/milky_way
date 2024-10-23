@@ -52,7 +52,8 @@ public class User {
     private Cart cart;
     @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
     private Seller sellers;
-
+    @OneToMany(mappedBy = "user")
+    private Set<Session> sessions;
         public Collection<? extends GrantedAuthority> getAuthorities() {
             return roles.stream()
                     .map(role -> new SimpleGrantedAuthority(role.getName()))

@@ -45,6 +45,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } else if ("refresh".equals(tokenType)) {
                 handleRefreshToken(token, email, response);
             }
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token is invalid or blacklisted.");
         }
         filterChain.doFilter(request, response);
     }

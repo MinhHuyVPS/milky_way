@@ -3,8 +3,10 @@ package milky_way.service;
 import milky_way.dto.request.UserRequest;
 import milky_way.dto.request.UserRequestLogin;
 import milky_way.dto.response.AuthResponse;
+import milky_way.dto.response.SessionResponse;
 import milky_way.dto.response.UserResponse;
 import milky_way.entity.Role;
+import milky_way.entity.Session;
 import milky_way.entity.User;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -39,6 +42,9 @@ public class AuthService {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private SessionService sessionService;
 
     public UserResponse registerUser(UserRequest userRequest){
         if (userRepository.existsByEmail(userRequest.getEmail())) {
@@ -69,9 +75,11 @@ public class AuthService {
         Set<Role> roles = user.get().getRoles();
         String accessToken = jwtTokenProvider.generateToken(user.get().getEmail(), roles);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getEmail());
+        Session session = sessionService.createSession(user.get());
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(accessToken);
         authResponse.setRefreshToken(refreshToken);
+        authResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
         return Optional.of(authResponse);
     }
 
@@ -79,20 +87,21 @@ public class AuthService {
         if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
-
         String email = jwtTokenProvider.getEmailFromJWT(refreshToken);
         Optional<User> user = userRepository.findByEmail(email);
-
-        if (user.isPresent()) {
-            Set<Role> roles = user.get().getRoles();
-            String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-            AuthResponse authResponse = new AuthResponse();
-            authResponse.setAccessToken(newAccessToken);
-            authResponse.setRefreshToken(refreshToken);
-            return authResponse;
-        } else {
+        if (!user.isPresent()) {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
         }
+        if (!sessionService.isSessionValid(email)) {
+            throw new AppException(ErrorCode.SESSION_INVALID);
+        }
+        Set<Role> roles = user.get().getRoles();
+        String newAccessToken = jwtTokenProvider.generateToken(email, roles);
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setAccessToken(newAccessToken);
+        authResponse.setRefreshToken(refreshToken);
+
+        return authResponse;
     }
 
 }

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import milky_way.repository.TokenBlacklistRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import milky_way.entity.Role;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,6 +27,9 @@ public class JwtTokenProvider {
     @Value("${jwtRefreshExpirationInMs}")
     private long jwtRefreshExpirationInMs;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Autowired
+    private TokenBlacklistRepository tokenBlacklistRepository;
 
     public String generateToken(String email, Set<Role> roles) {
         String rolesJson = null;
@@ -53,17 +58,6 @@ public class JwtTokenProvider {
                 .setExpiration(new Date(new Date().getTime() + jwtRefreshExpirationInMs))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
-    }
-
-    public boolean validateToken(String authToken) {
-        try {
-            Jwts.parser()
-                    .setSigningKey(jwtSecret)
-                    .parseClaimsJws(authToken);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     public List<GrantedAuthority> getAuthoritiesFromJWT(String token) {
@@ -99,4 +93,23 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+    public boolean isTokenBlacklisted(String token) {
+        return tokenBlacklistRepository.findByToken(token).isPresent();
+    }
+
+    public boolean validateToken(String authToken) {
+        try {
+            if (isTokenBlacklisted(authToken)) {
+                return false;
+            }
+            Jwts.parser()
+                    .setSigningKey(jwtSecret)
+                    .parseClaimsJws(authToken);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 }
