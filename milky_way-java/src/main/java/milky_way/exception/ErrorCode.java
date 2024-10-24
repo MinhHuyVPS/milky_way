@@ -6,6 +6,9 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    INVALID_TOKEN(401, "invalid token", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED_ACCESS(401, "Access is denied due to invalid credentials", HttpStatus.UNAUTHORIZED),
+    TOKEN_NOT_FOUND(404, "Token not found",HttpStatus.NOT_FOUND),
     SESSION_INVALID(401, "Session is invalid or expired", HttpStatus.INTERNAL_SERVER_ERROR),
     UNKNOWN_ERROR(500, "Unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
     USER_NOT_FOUND(404, "User Not Found", HttpStatus.NOT_FOUND),

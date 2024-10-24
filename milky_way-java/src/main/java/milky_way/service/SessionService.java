@@ -36,4 +36,9 @@ public class SessionService {
         Optional<Session> session = sessionRepository.findByUserEmail(email);
         return session.isPresent() && session.get().getExpiresAt().isAfter(LocalDateTime.now());
     }
+
+    public void invalidateSession(String email) {
+        Optional<Session> session = sessionRepository.findByUserEmail(email);
+        session.ifPresent(value -> sessionRepository.delete(value));
+    }
 }

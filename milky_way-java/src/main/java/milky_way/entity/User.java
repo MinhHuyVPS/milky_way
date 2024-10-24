@@ -26,6 +26,9 @@ public class User {
     private String firstname;
     private String lastname;
     private String phone;
+    private String avatar;
+    private String googleId;
+    private String facebookId;
     private String address;
     private String status;
     private LocalDate birthday;
@@ -54,9 +57,9 @@ public class User {
     private Seller sellers;
     @OneToMany(mappedBy = "user")
     private Set<Session> sessions;
-        public Collection<? extends GrantedAuthority> getAuthorities() {
-            return roles.stream()
-                    .map(role -> new SimpleGrantedAuthority(role.getName()))
-                    .toList();
-        }
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return roles.stream()
+                .map(role -> new SimpleGrantedAuthority(role.getName()))
+                .toList();
+    }
 }

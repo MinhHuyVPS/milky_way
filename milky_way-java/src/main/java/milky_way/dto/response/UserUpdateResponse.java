@@ -1,6 +1,8 @@
 package milky_way.dto.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import milky_way.entity.*;
 
 import java.time.LocalDate;
@@ -8,6 +10,8 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserUpdateResponse {
     private String username;
     private String email;

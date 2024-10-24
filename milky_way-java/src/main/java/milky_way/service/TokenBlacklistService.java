@@ -33,7 +33,6 @@ public class TokenBlacklistService {
     }
 
     public void removeExpiredTokens() {
-        // Logic để xóa các token đã hết hạn
-        // Ví dụ: tokenBlacklistRepository.deleteByExpiryDateBefore(LocalDateTime.now());
+        tokenBlacklistRepository.deleteByExpiryDateBefore(LocalDateTime.now());
     }
 }
