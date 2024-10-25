@@ -16,10 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Map;
 import java.util.Optional;
 
@@ -109,30 +108,49 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/google-login")
-    public ResponseEntity<AuthResponse> googleLogin(@RequestParam String code) {
-        AuthResponse authResponse = authService.handleGoogleLogin(code);
-        return ResponseEntity.ok(authResponse);
+    @GetMapping("/oauth2-success/google")
+    public ResponseEntity<?> oauth2LoginGoogle(OAuth2AuthenticationToken authentication) {
+        OAuth2User oAuth2User = authentication.getPrincipal();
+        String email = oAuth2User.getAttribute("email");
+        String googleId = oAuth2User.getAttribute("sub");
+
+        AuthResponse authResponse = authService.loginWithGoogle(email, googleId);
+        return ResponseEntity.ok().body(authResponse);
     }
 
-    @GetMapping("/facebook-login")
-    public ResponseEntity<AuthResponse> facebookLogin(@RequestParam String code) {
-        AuthResponse authResponse = authService.handleFacebookLogin(code);
-        return ResponseEntity.ok(authResponse);
+    @GetMapping("/oauth2-success/facebook")
+    public ResponseEntity<?> oauth2LoginFacebook(OAuth2AuthenticationToken authentication) {
+        OAuth2User oAuth2User = authentication.getPrincipal();
+        String email = oAuth2User.getAttribute("email");
+        String facebookId = oAuth2User.getAttribute("id");
+
+        AuthResponse authResponse = authService.loginWithFacebook(email, facebookId);
+        return ResponseEntity.ok().body(authResponse);
     }
 
     @PostMapping("/link-google")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<String> linkGoogleAccount(@RequestParam String code) {
-        authService.linkGoogleAccount(code);
-        return ResponseEntity.ok("Google account linked successfully.");
+    public ResponseEntity<?> linkGoogleAccount(@RequestParam String code) {
+        try{
+            AuthResponse authResponse = authService.linkGoogleAccount(code);
+            return ResponseEntity.ok(authResponse);
+        }catch (AppException e){
+            return ResponseEntity.status(ErrorCode.GOOGLE_LINK_FOUND.getHttpStatus())
+                    .body(ErrorCode.GOOGLE_LINK_FOUND.getMessage());
+        }
+
     }
 
     @PostMapping("/link-google")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<String> linkFacebookAccount(@RequestParam String code) {
-        authService.linkFacebookAccount(code);
-        return ResponseEntity.ok("Facebook account linked successfully.");
+    public ResponseEntity<?> linkFacebookAccount(@RequestParam String code) {
+        try{
+            AuthResponse authResponse = authService.linkFacebookAccount(code);
+            return ResponseEntity.ok(authResponse);
+        }catch (AppException e){
+            return ResponseEntity.status(ErrorCode.FACEBOOK_LINK_FOUND.getHttpStatus())
+                    .body(ErrorCode.FACEBOOK_LINK_FOUND.getMessage());
+        }
     }
 
 //    public function changePassword(UserChangePassword $userChangePassword, $id){

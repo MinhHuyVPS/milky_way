@@ -9,7 +9,8 @@ import milky_way.entity.Session;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AuthResponse {
-
+    private String googleId;
+    private String facebookId;
     private String accessToken;
     private String refreshToken;
     private SessionResponse sessionResponse;

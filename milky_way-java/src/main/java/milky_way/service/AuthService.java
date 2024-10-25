@@ -19,7 +19,11 @@ import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import milky_way.utils.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -54,6 +58,9 @@ public class AuthService {
 
     public UserResponse registerUser(UserRequest userRequest) {
         if (userRepository.existsByEmail(userRequest.getEmail())) {
+            throw new AppException(ErrorCode.EMAIL_EXIST);
+        }
+        if(userRepository.existByGoogleEmail(userRequest.getEmail())){
             throw new AppException(ErrorCode.EMAIL_EXIST);
         }
         User user = userMapper.toUser(userRequest);
@@ -143,5 +150,130 @@ public class AuthService {
             throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
         }
         return new UserProfileResponse(user.getUsername(), user.getEmail(), user.getFirstname(), user.getLastname(), user.getPhone(), user.getAddress(), user.getBirthday());
+    }
+
+    public AuthResponse loginWithGoogle(String googleEmail, String googleId) {
+        return handleOAuth2GoogleLogin(googleEmail, googleId);
+    }
+
+    public AuthResponse loginWithFacebook(String email, String facebookId) {
+        return handleOAuth2FaceBookLogin(email, facebookId);
+    }
+
+    private AuthResponse handleOAuth2GoogleLogin(String googleEmail, String googleId) {
+        User user = findOrGoogleCreateUser(googleEmail, googleId);
+        Session newSession = sessionService.createSession(user);
+        Set<Role> roles = user.getRoles();
+        String newAccessToken = jwtTokenProvider.generateToken(googleEmail, roles);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(googleEmail);
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setAccessToken(newAccessToken);
+        authResponse.setRefreshToken(newRefreshToken);
+        authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
+        authResponse.setGoogleId(googleId);
+        return authResponse;
+    }
+
+    private User findOrGoogleCreateUser(String googleEmail, String googleId) {
+        Optional<User> existingUser = userRepository.findByGoogleEmail(googleEmail);
+
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            linkGoogleOAuthProviderIfNecessary(user, googleId);
+            return user;
+        } else {
+            return createGoogleUserWithOAuth(googleEmail, googleId);
+        }
+    }
+
+    private void linkGoogleOAuthProviderIfNecessary(User user, String googleId) {
+        if (user.getGoogleId() == null && googleId != null) {
+            user.setGoogleId(googleId);
+            userRepository.save(user);
+        } else {
+            throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
+        }
+    }
+
+    private User createGoogleUserWithOAuth(String googleEmail, String googleId) {
+        User user = new User();
+        user.setGoogle_email(googleEmail);
+        if (googleId != null) user.setGoogleId(googleId);
+        userRepository.save(user);
+        return user;
+    }
+
+    private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId) {
+        User user = findOrFaceBookCreateUser(email, facebookId);
+        Session newSession = sessionService.createSession(user);
+        Set<Role> roles = user.getRoles();
+        String newAccessToken = jwtTokenProvider.generateToken(email, roles);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(email);
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setAccessToken(newAccessToken);
+        authResponse.setRefreshToken(newRefreshToken);
+        authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
+        authResponse.setGoogleId(facebookId);
+        return authResponse;
+    }
+
+    private User findOrFaceBookCreateUser(String email, String facebookId) {
+        Optional<User> existingUser = userRepository.findByEmail(email);
+
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            linkFaceBookOAuthProviderIfNecessary(user, facebookId);
+            return user;
+        } else {
+            return createFaceBookUserWithOAuth(email, facebookId);
+        }
+    }
+
+    private void linkFaceBookOAuthProviderIfNecessary(User user, String facebookId) {
+        if (user.getFacebookId() == null && facebookId != null) {
+            user.setGoogleId(facebookId);
+            userRepository.save(user);
+        } else {
+            throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
+        }
+    }
+
+    private User createFaceBookUserWithOAuth(String email, String facebookId) {
+        User user = new User();
+        user.setEmail(email);
+        if (facebookId != null) user.setGoogleId(facebookId);
+        userRepository.save(user);
+        return user;
+    }
+
+    public AuthResponse linkGoogleAccount(String code) {
+        OAuth2User googleUser = getGoogleUser(code);
+        String googleEmail = googleUser.getAttribute("email");
+        String googleId = googleUser.getAttribute("sub");
+        User currentUser = getCurrentAuthenticatedUser();
+        currentUser.setGoogle_email(googleEmail);
+        currentUser.setGoogleId(googleId);
+        User updatedUser = userRepository.save(currentUser);
+        return userMapper.toAuthResponse(updatedUser);
+    }
+
+    public AuthResponse linkFacebookAccount(String code) {
+        OAuth2User facebookUser = getFacebookUser(code);
+        String googleEmail = facebookUser.getAttribute("email");
+        String facebookId = facebookUser.getAttribute("id");
+        User currentUser = getCurrentAuthenticatedUser();
+        currentUser.setGoogle_email(googleEmail);
+        currentUser.setFacebookId(facebookId);
+        User updatedUser = userRepository.save(currentUser);
+        return userMapper.toAuthResponse(updatedUser);
+    }
+
+    private User getCurrentAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+            return userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
+        }
+        throw new AppException(ErrorCode.USER_NOT_AUTHENTICATED);
     }
 }

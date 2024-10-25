@@ -6,6 +6,10 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    FACEBOOK_LINK_FOUND(400,"Facebook account linked false.", HttpStatus.FOUND),
+    GOOGLE_LINK_FOUND(400, "Google account linked false.", HttpStatus.FOUND),
+    USER_NOT_AUTHENTICATED(401, "User not authenticated", HttpStatus.UNAUTHORIZED),
+    LINKED_ACCOUNT_MISMATCH(400, "linked account mismatch", HttpStatus.BAD_REQUEST),
     INVALID_TOKEN(401, "invalid token", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED_ACCESS(401, "Access is denied due to invalid credentials", HttpStatus.UNAUTHORIZED),
     TOKEN_NOT_FOUND(404, "Token not found",HttpStatus.NOT_FOUND),

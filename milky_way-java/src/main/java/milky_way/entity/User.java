@@ -22,6 +22,7 @@ public class User {
     private String id;
     private String username;
     private String email;
+    private String google_email;
     private String password;
     private String firstname;
     private String lastname;

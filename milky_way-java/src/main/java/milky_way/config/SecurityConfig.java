@@ -26,7 +26,7 @@ public class SecurityConfig{
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    private final String[] PUBLIC_URLS = {"/api/v1/auth/register", "/api/v1/auth/login"};
+    private final String[] PUBLIC_URLS = {"/api/v1/auth/register", "/api/v1/auth/login", "/oauth2/**"};
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -40,8 +40,8 @@ public class SecurityConfig{
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/oauth2/authorization/google")
-                        .defaultSuccessUrl("/loginSuccess", true)
-                        .failureUrl("/loginFailure")
+                        .defaultSuccessUrl("/login-success", true)
+                        .failureUrl("/login-failure")
                 );
 
         return http.build();
