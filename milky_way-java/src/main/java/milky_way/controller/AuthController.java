@@ -13,12 +13,16 @@ import milky_way.service.TokenBlacklistService;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
+import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,6 +37,12 @@ public class AuthController {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String clientId;
+
+    @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
+    private String redirectUris;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserRequest userRequest) {
@@ -128,17 +138,22 @@ public class AuthController {
         return ResponseEntity.ok().body(authResponse);
     }
 
-    @PostMapping("/link-google")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> linkGoogleAccount(@RequestParam String code) {
-        try{
-            AuthResponse authResponse = authService.linkGoogleAccount(code);
-            return ResponseEntity.ok(authResponse);
-        }catch (AppException e){
-            return ResponseEntity.status(ErrorCode.GOOGLE_LINK_FOUND.getHttpStatus())
-                    .body(ErrorCode.GOOGLE_LINK_FOUND.getMessage());
-        }
+    @GetMapping("/oauth2/authorize/google")
+    public ResponseEntity<Void> redirectToGoogle() {
+        String redirectUri = "https://accounts.google.com/o/oauth2/v2/auth"
+                + "?client_id=" + clientId
+                + "&redirect_uri=" + redirectUris
+                + "&response_type=code"
+                + "&scope=email%20profile";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(URI.create(redirectUri));
+        return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
+    }
 
+    @GetMapping("/oauth2/callback")
+    public ResponseEntity<?> handleGoogleCallback(@RequestParam String code) {
+        AuthResponse authResponse = authService.linkGoogleAccount(code);
+        return ResponseEntity.ok(authResponse);
     }
 
     @PostMapping("/link-google")

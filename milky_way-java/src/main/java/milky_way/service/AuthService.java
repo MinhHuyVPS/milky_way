@@ -1,6 +1,7 @@
 package milky_way.service;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import milky_way.dto.request.UserRequest;
 import milky_way.dto.request.UserRequestLogin;
 import milky_way.dto.response.AuthResponse;
@@ -19,22 +20,36 @@ import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import milky_way.utils.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class AuthService {
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String clientId;
 
+    @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
+    private String redirectUri;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
+    private String clientSecret;
     @Autowired
     private UserRepository userRepository;
 
@@ -55,6 +70,9 @@ public class AuthService {
 
     @Autowired
     private TokenBlacklistService tokenBlacklistService;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     public UserResponse registerUser(UserRequest userRequest) {
         if (userRepository.existsByEmail(userRequest.getEmail())) {
@@ -174,33 +192,38 @@ public class AuthService {
         return authResponse;
     }
 
-    private User findOrGoogleCreateUser(String googleEmail, String googleId) {
-        Optional<User> existingUser = userRepository.findByGoogleEmail(googleEmail);
+        private User findOrGoogleCreateUser(String googleEmail, String googleId) {
+            Optional<User> existingUser = userRepository.findByGoogleEmail(googleEmail);
 
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            linkGoogleOAuthProviderIfNecessary(user, googleId);
-            return user;
-        } else {
-            return createGoogleUserWithOAuth(googleEmail, googleId);
+            if (existingUser.isPresent()) {
+                User user = existingUser.get();
+                linkGoogleOAuthProviderIfNecessary(user, googleId);
+                return user;
+            } else {
+                return createGoogleUserWithOAuth(googleEmail, googleId);
+            }
         }
-    }
 
     private void linkGoogleOAuthProviderIfNecessary(User user, String googleId) {
+        String encryptedGoogleId = encryptGoogleId(googleId);
         if (user.getGoogleId() == null && googleId != null) {
-            user.setGoogleId(googleId);
+            user.setGoogleId(encryptedGoogleId);
             userRepository.save(user);
-        } else {
+        } else if (user.getGoogleId() != null && !user.getGoogleId().equals(googleId)) {
             throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
         }
     }
 
-    private User createGoogleUserWithOAuth(String googleEmail, String googleId) {
-        User user = new User();
-        user.setGoogle_email(googleEmail);
-        if (googleId != null) user.setGoogleId(googleId);
-        userRepository.save(user);
-        return user;
+        private User createGoogleUserWithOAuth(String googleEmail, String googleId) {
+            User user = new User();
+            user.setGoogle_email(googleEmail);
+            if (googleId != null) user.setGoogleId(googleId);
+            userRepository.save(user);
+            return user;
+        }
+
+    private String encryptGoogleId(String googleId) {
+        return passwordEncoder.encode(googleId);
     }
 
     private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId) {
@@ -246,15 +269,59 @@ public class AuthService {
         return user;
     }
 
+    @Transactional
     public AuthResponse linkGoogleAccount(String code) {
-        OAuth2User googleUser = getGoogleUser(code);
+        String accessToken = exchangeCodeForAccessToken(code);
+        OAuth2User googleUser = fetchUserInfoFromGoogle(accessToken);
         String googleEmail = googleUser.getAttribute("email");
         String googleId = googleUser.getAttribute("sub");
         User currentUser = getCurrentAuthenticatedUser();
         currentUser.setGoogle_email(googleEmail);
-        currentUser.setGoogleId(googleId);
+        currentUser.setGoogleId(encryptGoogleId(googleId));
         User updatedUser = userRepository.save(currentUser);
         return userMapper.toAuthResponse(updatedUser);
+    }
+
+    private String exchangeCodeForAccessToken(String code) {
+        String tokenEndpoint = "https://oauth2.googleapis.com/token";
+        Map<String, String> params = new HashMap<>();
+        params.put("client_id", clientId);
+        params.put("client_secret", clientSecret);
+        params.put("redirect_uri", redirectUri);
+        params.put("grant_type", "authorization_code");
+        params.put("code", code);
+        var response = restTemplate.postForEntity(tokenEndpoint, params, Map.class);
+        var responseBody = response.getBody();
+        if (responseBody == null || responseBody.get("access_token") == null) {
+            throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+        }
+        return (String) responseBody.get("access_token");
+
+    }
+
+    private OAuth2User fetchUserInfoFromGoogle(String accessToken) {
+        String userInfoEndpointUri = "https://www.googleapis.com/oauth2/v3/userinfo";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
+
+        Map<String, Object> userAttributes = response.getBody();
+        return new DefaultOAuth2User(
+                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
+                Objects.requireNonNull(userAttributes),
+                "sub");
+    }
+
+    private User getCurrentAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+            return userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
+        }
+        throw new AppException(ErrorCode.USER_NOT_AUTHENTICATED);
     }
 
     public AuthResponse linkFacebookAccount(String code) {
@@ -266,14 +333,5 @@ public class AuthService {
         currentUser.setFacebookId(facebookId);
         User updatedUser = userRepository.save(currentUser);
         return userMapper.toAuthResponse(updatedUser);
-    }
-
-    private User getCurrentAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            String email = ((UserDetails) authentication.getPrincipal()).getUsername();
-            return userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
-        }
-        throw new AppException(ErrorCode.USER_NOT_AUTHENTICATED);
     }
 }
