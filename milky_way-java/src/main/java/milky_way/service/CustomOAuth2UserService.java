@@ -24,7 +24,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        user.setGoogle_email(email);
+        user.setGoogleEmail(email);
         user.setGoogleId(googleId);
         userRepository.save(user);
         return oAuth2User;

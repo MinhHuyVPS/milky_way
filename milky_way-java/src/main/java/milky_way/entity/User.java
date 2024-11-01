@@ -22,7 +22,8 @@ public class User {
     private String id;
     private String username;
     private String email;
-    private String google_email;
+    @Column(name = "google_email")
+    private String googleEmail ;
     private String password;
     private String firstname;
     private String lastname;
@@ -36,13 +37,13 @@ public class User {
     private LocalDateTime delete_at;
     private LocalDateTime create_at;
     private LocalDateTime update_at;
-    @ManyToMany
-    @JoinTable(
-            name = "users_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles;
+        @ManyToMany(fetch = FetchType.EAGER)
+        @JoinTable(
+                name = "users_roles",
+                joinColumns = @JoinColumn(name = "user_id"),
+                inverseJoinColumns = @JoinColumn(name = "role_id")
+        )
+        private Set<Role> roles;
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
     private Set<Order> orders;
     @ManyToMany

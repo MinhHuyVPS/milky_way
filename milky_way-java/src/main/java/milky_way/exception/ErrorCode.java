@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    INVALID_RESPONSE_CONTENT(1000,"loi deo alm", HttpStatus.NO_CONTENT),
     INVALID_OAUTH_CODE(400, "Access token cannot be obtained from authentication code" , HttpStatus.NOT_FOUND),
     FACEBOOK_LINK_FOUND(400,"Facebook account linked false.", HttpStatus.FOUND),
     GOOGLE_LINK_FOUND(400, "Google account linked false.", HttpStatus.FOUND),

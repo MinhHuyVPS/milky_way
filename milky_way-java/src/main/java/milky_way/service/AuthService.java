@@ -4,10 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import milky_way.dto.request.UserRequest;
 import milky_way.dto.request.UserRequestLogin;
-import milky_way.dto.response.AuthResponse;
-import milky_way.dto.response.SessionResponse;
-import milky_way.dto.response.UserProfileResponse;
-import milky_way.dto.response.UserResponse;
+import milky_way.dto.response.*;
 import milky_way.entity.Role;
 import milky_way.entity.Session;
 import milky_way.entity.User;
@@ -33,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -45,11 +43,18 @@ public class AuthService {
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
 
-    @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
+    @Value("${spring.security.oauth2.client.registration.google.redirect.uri}")
     private String redirectUri;
 
     @Value("${spring.security.oauth2.client.registration.google.client-secret}")
     private String clientSecret;
+
+    @Value("${spring.security.oauth2.client.provider.google.token-uri}")
+    private String tokenUri;
+
+    @Value("${spring.security.oauth2.client.provider.google.user-info-uri}")
+    private String userInfoUri;
+
     @Autowired
     private UserRepository userRepository;
 
@@ -78,7 +83,7 @@ public class AuthService {
         if (userRepository.existsByEmail(userRequest.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXIST);
         }
-        if(userRepository.existByGoogleEmail(userRequest.getEmail())){
+        if(userRepository.existsByGoogleEmail(userRequest.getEmail())){
             throw new AppException(ErrorCode.EMAIL_EXIST);
         }
         User user = userMapper.toUser(userRequest);
@@ -105,16 +110,17 @@ public class AuthService {
         }
         Set<Role> roles = user.get().getRoles();
         String accessToken = jwtTokenProvider.generateToken(user.get().getEmail(), roles);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getEmail());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getEmail(), roles);
         Session session = sessionService.createSession(user.get());
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(accessToken);
         authResponse.setRefreshToken(refreshToken);
+//        authResponse.setGoogleId(user.get().getGoogleId());
         authResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
         return Optional.of(authResponse);
     }
 
-    public AuthResponse refreshToken(String refreshToken) {
+    public AuthLoginResponse refreshToken(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
@@ -123,21 +129,22 @@ public class AuthService {
         if (user.isEmpty()) {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
         }
-        if (!sessionService.isSessionValid(email)) {
-            Session newSession = sessionService.createSession(user.get());
-            Set<Role> roles = user.get().getRoles();
-            String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-            AuthResponse authResponse = new AuthResponse();
-            authResponse.setAccessToken(newAccessToken);
-            authResponse.setRefreshToken(refreshToken);
-            authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
-            return authResponse;
-        }
+        AuthLoginResponse authResponse = new AuthLoginResponse();
         Set<Role> roles = user.get().getRoles();
         String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-        AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(newAccessToken);
         authResponse.setRefreshToken(refreshToken);
+        Optional<Session> currentSession = sessionService.getSession(email);
+        if (currentSession.isPresent()) {
+            Session session = currentSession.get();
+            authResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
+        } else {
+            Session newSession = sessionService.createSession(user.get());
+            authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
+        }
+        if (authResponse.getSessionResponse() == null) {
+            throw new AppException(ErrorCode.INVALID_RESPONSE_CONTENT);
+        }
         return authResponse;
     }
 
@@ -183,7 +190,7 @@ public class AuthService {
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
         String newAccessToken = jwtTokenProvider.generateToken(googleEmail, roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(googleEmail);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(googleEmail, roles);
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(newAccessToken);
         authResponse.setRefreshToken(newRefreshToken);
@@ -192,17 +199,17 @@ public class AuthService {
         return authResponse;
     }
 
-        private User findOrGoogleCreateUser(String googleEmail, String googleId) {
-            Optional<User> existingUser = userRepository.findByGoogleEmail(googleEmail);
+    private User findOrGoogleCreateUser(String googleEmail, String googleId) {
+        Optional<User> existingUser = userRepository.findByGoogleEmail(googleEmail);
 
-            if (existingUser.isPresent()) {
-                User user = existingUser.get();
-                linkGoogleOAuthProviderIfNecessary(user, googleId);
-                return user;
-            } else {
-                return createGoogleUserWithOAuth(googleEmail, googleId);
-            }
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            linkGoogleOAuthProviderIfNecessary(user, googleId);
+            return user;
+        } else {
+            return createGoogleUserWithOAuth(googleEmail, googleId);
         }
+    }
 
     private void linkGoogleOAuthProviderIfNecessary(User user, String googleId) {
         String encryptedGoogleId = encryptGoogleId(googleId);
@@ -214,13 +221,13 @@ public class AuthService {
         }
     }
 
-        private User createGoogleUserWithOAuth(String googleEmail, String googleId) {
-            User user = new User();
-            user.setGoogle_email(googleEmail);
-            if (googleId != null) user.setGoogleId(googleId);
-            userRepository.save(user);
-            return user;
-        }
+    private User createGoogleUserWithOAuth(String googleEmail, String googleId) {
+        User user = new User();
+        user.setGoogleEmail(googleEmail);
+        if (googleId != null) user.setGoogleId(googleId);
+        userRepository.save(user);
+        return user;
+    }
 
     private String encryptGoogleId(String googleId) {
         return passwordEncoder.encode(googleId);
@@ -231,7 +238,7 @@ public class AuthService {
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
         String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(email);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(email, roles);
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(newAccessToken);
         authResponse.setRefreshToken(newRefreshToken);
@@ -275,32 +282,37 @@ public class AuthService {
         OAuth2User googleUser = fetchUserInfoFromGoogle(accessToken);
         String googleEmail = googleUser.getAttribute("email");
         String googleId = googleUser.getAttribute("sub");
-        User currentUser = getCurrentAuthenticatedUser();
-        currentUser.setGoogle_email(googleEmail);
-        currentUser.setGoogleId(encryptGoogleId(googleId));
-        User updatedUser = userRepository.save(currentUser);
+        User existingUser = userRepository.findByEmail(googleEmail)
+                .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
+        existingUser.setGoogleEmail(googleEmail);
+        existingUser.setGoogleId(encryptGoogleId(googleId));
+        User updatedUser = userRepository.save(existingUser);
         return userMapper.toAuthResponse(updatedUser);
     }
 
     private String exchangeCodeForAccessToken(String code) {
-        String tokenEndpoint = "https://oauth2.googleapis.com/token";
+        String tokenEndpoint = tokenUri;
         Map<String, String> params = new HashMap<>();
         params.put("client_id", clientId);
         params.put("client_secret", clientSecret);
         params.put("redirect_uri", redirectUri);
         params.put("grant_type", "authorization_code");
         params.put("code", code);
-        var response = restTemplate.postForEntity(tokenEndpoint, params, Map.class);
-        var responseBody = response.getBody();
-        if (responseBody == null || responseBody.get("access_token") == null) {
+        try {
+            var response = restTemplate.postForEntity(tokenEndpoint, params, Map.class);
+            var responseBody = response.getBody();
+            if (responseBody == null || responseBody.get("access_token") == null) {
+                throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+            }
+            return (String) responseBody.get("access_token");
+        } catch (HttpClientErrorException e) {
+            System.out.println("Error response: " + e.getResponseBodyAsString());
             throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
         }
-        return (String) responseBody.get("access_token");
-
     }
 
     private OAuth2User fetchUserInfoFromGoogle(String accessToken) {
-        String userInfoEndpointUri = "https://www.googleapis.com/oauth2/v3/userinfo";
+        String userInfoEndpointUri = userInfoUri;
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         HttpEntity<?> entity = new HttpEntity<>(headers);
@@ -309,29 +321,31 @@ public class AuthService {
 
         Map<String, Object> userAttributes = response.getBody();
         return new DefaultOAuth2User(
-                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
+//                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")), nếu lỗi thì đổi lại là dòng này
+                Collections.emptySet(),
                 Objects.requireNonNull(userAttributes),
                 "sub");
     }
 
-    private User getCurrentAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            String email = ((UserDetails) authentication.getPrincipal()).getUsername();
-            return userRepository.findByEmail(email)
-                    .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
-        }
-        throw new AppException(ErrorCode.USER_NOT_AUTHENTICATED);
-    }
+//    private User getCurrentAuthenticatedUser() {
+//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//        System.out.println("Authentication: " + authentication);
+//        if (authentication != null && authentication.isAuthenticated()) {
+//            String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+//            return userRepository.findByEmail(email)
+//                    .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
+//        }
+//        throw new AppException(ErrorCode.USER_NOT_AUTHENTICATED);
+//    }
 
-    public AuthResponse linkFacebookAccount(String code) {
-        OAuth2User facebookUser = getFacebookUser(code);
-        String googleEmail = facebookUser.getAttribute("email");
-        String facebookId = facebookUser.getAttribute("id");
-        User currentUser = getCurrentAuthenticatedUser();
-        currentUser.setGoogle_email(googleEmail);
-        currentUser.setFacebookId(facebookId);
-        User updatedUser = userRepository.save(currentUser);
-        return userMapper.toAuthResponse(updatedUser);
-    }
+//    public AuthResponse linkFacebookAccount(String code) {
+//        OAuth2User facebookUser = getFacebookUser(code);
+//        String googleEmail = facebookUser.getAttribute("email");
+//        String facebookId = facebookUser.getAttribute("id");
+//        User currentUser = getCurrentAuthenticatedUser();
+//        currentUser.setGoogle_email(googleEmail);
+//        currentUser.setFacebookId(facebookId);
+//        User updatedUser = userRepository.save(currentUser);
+//        return userMapper.toAuthResponse(updatedUser);
+//    }
 }

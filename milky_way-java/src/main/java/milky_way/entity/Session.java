@@ -23,4 +23,7 @@ public class Session {
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(expiresAt);
+    }
 }

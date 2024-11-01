@@ -3,6 +3,7 @@ package milky_way.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import milky_way.dto.request.UserRequest;
 import milky_way.dto.request.UserRequestLogin;
+import milky_way.dto.response.AuthLoginResponse;
 import milky_way.dto.response.AuthResponse;
 import milky_way.dto.response.UserProfileResponse;
 import milky_way.dto.response.UserResponse;
@@ -25,10 +26,14 @@ import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 @RestController
+@CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("api/v1/auth")
 public class AuthController {
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     @Autowired
     private AuthService authService;
 
@@ -41,8 +46,11 @@ public class AuthController {
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
 
-    @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
+    @Value("${spring.security.oauth2.client.registration.google.redirect.uri}")
     private String redirectUris;
+
+    @Value("${spring.security.oauth2.client.provider.google.authorization-uri}")
+    private String authorRedirectUri;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserRequest userRequest) {
@@ -78,14 +86,14 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> refreshToken(@RequestHeader("Authorization") String authorizationHeader) {
+        logger.info("Refreshing token");
         try {
-            String refreshToken = request.get("refreshToken");
-            if (refreshToken == null || refreshToken.isEmpty()) {
+            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
                 throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
             }
-
-            AuthResponse authResponse = authService.refreshToken(refreshToken);
+            String refreshToken = authorizationHeader.substring(7);
+            AuthLoginResponse authResponse = authService.refreshToken(refreshToken);
             return ResponseEntity.ok(authResponse);
         } catch (AppException e) {
             return ResponseEntity.status(e.getErrorCode().getHttpStatus())
@@ -118,7 +126,7 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/oauth2-success/google")
+    @GetMapping("/oauth2/google")
     public ResponseEntity<?> oauth2LoginGoogle(OAuth2AuthenticationToken authentication) {
         OAuth2User oAuth2User = authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
@@ -128,7 +136,7 @@ public class AuthController {
         return ResponseEntity.ok().body(authResponse);
     }
 
-    @GetMapping("/oauth2-success/facebook")
+    @GetMapping("/oauth2/facebook")
     public ResponseEntity<?> oauth2LoginFacebook(OAuth2AuthenticationToken authentication) {
         OAuth2User oAuth2User = authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
@@ -140,7 +148,7 @@ public class AuthController {
 
     @GetMapping("/oauth2/authorize/google")
     public ResponseEntity<Void> redirectToGoogle() {
-        String redirectUri = "https://accounts.google.com/o/oauth2/v2/auth"
+        String redirectUri = authorRedirectUri
                 + "?client_id=" + clientId
                 + "&redirect_uri=" + redirectUris
                 + "&response_type=code"
@@ -156,17 +164,17 @@ public class AuthController {
         return ResponseEntity.ok(authResponse);
     }
 
-    @PostMapping("/link-google")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> linkFacebookAccount(@RequestParam String code) {
-        try{
-            AuthResponse authResponse = authService.linkFacebookAccount(code);
-            return ResponseEntity.ok(authResponse);
-        }catch (AppException e){
-            return ResponseEntity.status(ErrorCode.FACEBOOK_LINK_FOUND.getHttpStatus())
-                    .body(ErrorCode.FACEBOOK_LINK_FOUND.getMessage());
-        }
-    }
+//    @PostMapping("/link-google")
+//    @PreAuthorize("isAuthenticated()")
+//    public ResponseEntity<?> linkFacebookAccount(@RequestParam String code) {
+//        try{
+//            AuthResponse authResponse = authService.linkFacebookAccount(code);
+//            return ResponseEntity.ok(authResponse);
+//        }catch (AppException e){
+//            return ResponseEntity.status(ErrorCode.FACEBOOK_LINK_FOUND.getHttpStatus())
+//                    .body(ErrorCode.FACEBOOK_LINK_FOUND.getMessage());
+//        }
+//    }
 
 //    public function changePassword(UserChangePassword $userChangePassword, $id){
 //        return $this->authService->changePassword($id, $userChangePassword->validated());

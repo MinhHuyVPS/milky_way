@@ -15,6 +15,11 @@ public class SessionService {
     @Autowired
     private SessionRepository sessionRepository;
 
+    public Optional<Session> getSession(String email) {
+        return sessionRepository.findByUserEmail(email)
+                .filter(session -> !session.isExpired());
+    }
+
     public Session createSession(User user) {
         Session session = Session.builder()
                 .createdAt(LocalDateTime.now())

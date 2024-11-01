@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,11 +36,16 @@ public class JwtTokenProvider {
     private TokenBlacklistRepository tokenBlacklistRepository;
 
     public String generateToken(String email, Set<Role> roles) {
-        String rolesJson = null;
+        String rolesJson;
         try {
-            rolesJson = objectMapper.writeValueAsString(roles.stream()
-                    .map(Role::getName)
-                    .collect(Collectors.toList()));
+            if (roles == null || roles.isEmpty()) {
+                rolesJson = "[]";
+            } else {
+                rolesJson = objectMapper.writeValueAsString(roles.stream()
+                        .map(Role::getName)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()));
+            }
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -53,9 +59,23 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String generateRefreshToken(String email) {
+    public String generateRefreshToken(String email, Set<Role> roles) {
+        String rolesJson;
+        try {
+            if (roles == null || roles.isEmpty()) {
+                rolesJson = "[]";
+            } else {
+                rolesJson = objectMapper.writeValueAsString(roles.stream()
+                        .map(Role::getName)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()));
+            }
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
         return Jwts.builder()
                 .setSubject(email)
+                .claim("roles", rolesJson)
                 .claim("type", "refresh")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + jwtRefreshExpirationInMs))
@@ -91,10 +111,15 @@ public class JwtTokenProvider {
     }
 
     public Claims getClaimsFromJWT(String token) {
-        return Jwts.parser()
-                .setSigningKey(jwtSecret)
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parser()
+                    .setSigningKey(jwtSecret)
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (Exception e) {
+            System.out.println("Failed to get claims from token: " + e.getMessage());
+            throw e;
+        }
     }
 
     public boolean isTokenBlacklisted(String token) {
@@ -104,6 +129,7 @@ public class JwtTokenProvider {
     public boolean validateToken(String authToken) {
         try {
             if (isTokenBlacklisted(authToken)) {
+                System.out.println("Token is blacklisted.");
                 return false;
             }
             Jwts.parser()
@@ -111,6 +137,7 @@ public class JwtTokenProvider {
                     .parseClaimsJws(authToken);
             return true;
         } catch (Exception e) {
+            System.out.println("Token validation failed: " + e.getMessage());
             return false;
         }
     }
