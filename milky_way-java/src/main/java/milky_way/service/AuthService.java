@@ -39,20 +39,35 @@ public class AuthService {
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
 
+    @Value("${spring.security.oauth2.client.registration.facebook.client-id}")
+    private String clientFacebookId;
+
     @Value("${spring.security.oauth2.client.registration.google.redirect.uri}")
     private String redirectUri;
 
     @Value("${spring.security.oauth2.client.registration.google.client-secret}")
     private String clientSecret;
 
+    @Value("${spring.security.oauth2.client.registration.facebook.client-secret}")
+    private String clientFacebookSecret;
+
     @Value("${spring.security.oauth2.client.provider.google.token-uri}")
     private String tokenUri;
+
+    @Value("${spring.security.oauth2.client.provider.facebook.token-uri}")
+    private String facebookTokenUri;
 
     @Value("${spring.security.oauth2.client.provider.google.user-info-uri}")
     private String userInfoUri;
 
+    @Value("${spring.security.oauth2.client.provider.facebook.user-info-uri}")
+    private String facebookUserInfoUri;
+
     @Value("${google.oauth2.redirect.base-url}")
     private String googleRedirectBaseUrl;
+
+    @Value("${oauth2.redirect.facebook.base-url}")
+    private String facebookRedirectBaseUrl;
 
     @Autowired
     private UserRepository userRepository;
@@ -254,12 +269,55 @@ public class AuthService {
         return passwordEncoder.encode(googleId);
     }
 
-    public AuthResponse loginWithFacebook(String email, String facebookId) {
-        return handleOAuth2FaceBookLogin(email, facebookId);
+    public AuthResponse loginWithFacebook(String code) {
+        String accessToken = exchangeCodeForAccessTokenLoginFacebook(code);
+        OAuth2User facebookUser = fetchUserInfoFromFacebook(accessToken);
+        String facebookEmail = facebookUser.getAttribute("email");
+        String facebookId = facebookUser.getAttribute("id");
+        String facebookName = facebookUser.getAttribute("name");
+        String avatar = facebookUser.getAttribute("picture");
+        return handleOAuth2FaceBookLogin(facebookEmail, facebookId, facebookName, avatar);
     }
 
-    private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId) {
-        User user = findOrFaceBookCreateUser(email, facebookId);
+    private String exchangeCodeForAccessTokenLoginFacebook(String code) {
+        String tokenEndpoint = facebookTokenUri; //https://graph.facebook.com/v21.0/oauth/access_token
+        Map<String, String> params = new HashMap<>();
+        params.put("client_id", clientFacebookId);
+        params.put("client_secret", clientFacebookSecret);
+        params.put("redirect_uri", facebookRedirectBaseUrl);
+        params.put("grant_type", "authorization_code");
+        params.put("code", code);
+        try {
+            var response = restTemplate.postForEntity(tokenEndpoint, params, Map.class);
+            var responseBody = response.getBody();
+            if (responseBody == null || responseBody.get("access_token") == null) {
+                throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+            }
+            return (String) responseBody.get("access_token");
+        } catch (HttpClientErrorException e) {
+            System.out.println("Error response: " + e.getResponseBodyAsString());
+            throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+        }
+    }
+
+    private OAuth2User fetchUserInfoFromFacebook(String accessToken) {
+        String userInfoEndpointUri = facebookUserInfoUri; //https://graph.facebook.com/v12.0/me?fields=id,name,email,picture
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
+
+        Map<String, Object> userAttributes = response.getBody();
+        return new DefaultOAuth2User(
+//                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")), nếu lỗi thì đổi lại là dòng này
+                Collections.emptySet(),
+                Objects.requireNonNull(userAttributes),
+                "id");
+    }
+
+    private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId, String facebookName, String avatar) {
+        User user = findOrFaceBookCreateUser(email, facebookId, facebookName, avatar);
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
         String newAccessToken = jwtTokenProvider.generateToken(email, roles);
@@ -272,30 +330,38 @@ public class AuthService {
         return authResponse;
     }
 
-    private User findOrFaceBookCreateUser(String email, String facebookId) {
+    private User findOrFaceBookCreateUser(String email, String facebookId, String facebookName, String avatar) {
         Optional<User> existingUser = userRepository.findByEmail(email);
-
         if (existingUser.isPresent()) {
             User user = existingUser.get();
-            linkFaceBookOAuthProviderIfNecessary(user, facebookId);
+            linkFaceBookOAuthProviderIfNecessary(user, facebookId, facebookName, avatar);
             return user;
         } else {
-            return createFaceBookUserWithOAuth(email, facebookId);
+            return createFaceBookUserWithOAuth(email, facebookId, facebookName, avatar);
         }
     }
 
-    private void linkFaceBookOAuthProviderIfNecessary(User user, String facebookId) {
+    private void linkFaceBookOAuthProviderIfNecessary(User user, String facebookId, String facebookName, String avatar) {
         if (user.getFacebookId() == null && facebookId != null) {
             user.setGoogleId(facebookId);
-            userRepository.save(user);
-        } else {
+        }
+        if(user.getUsername() == null && facebookName != null){
+            user.setUsername(facebookName);
+        }
+        if(user.getAvatar() == null && avatar != null){
+            user.setAvatar(avatar);
+        }
+        else {
             throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
         }
+        userRepository.save(user);
     }
 
-    private User createFaceBookUserWithOAuth(String email, String facebookId) {
+    private User createFaceBookUserWithOAuth(String email, String facebookId, String facebookName, String avatar) {
         User user = new User();
         user.setEmail(email);
+        user.setUsername(facebookName);
+        user.setAvatar(avatar);
         if (facebookId != null) user.setGoogleId(facebookId);
         userRepository.save(user);
         return user;

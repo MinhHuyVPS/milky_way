@@ -169,6 +169,12 @@ public class AuthController {
         return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
     }
 
+    @GetMapping("/oauth2/facebook")
+    public ResponseEntity<?> oauth2LoginFacebook(@RequestParam String code) {
+        AuthResponse authResponse = authService.loginWithFacebook(code);
+        return ResponseEntity.ok().body(authResponse);
+    }
+
     @GetMapping("/oauth2/authorize/google")
     public ResponseEntity<Void> redirectToGoogle() {
         String redirectUri = authorRedirectUri

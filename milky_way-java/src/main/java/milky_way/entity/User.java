@@ -31,6 +31,8 @@ public class User {
     private String avatar;
     private String googleId;
     private String facebookId;
+    @Column(name = "facebook_email")
+    private String facebookEmail;
     private String address;
     private String status;
     private LocalDate birthday;
