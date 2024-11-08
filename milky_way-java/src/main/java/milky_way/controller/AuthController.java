@@ -19,12 +19,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
-import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,11 +47,23 @@ public class AuthController {
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
 
+    @Value("${spring.security.oauth2.client.registration.facebook.client-id}")
+    private String clientFacebookId;
+
     @Value("${spring.security.oauth2.client.registration.google.redirect.uri}")
     private String redirectUris;
 
     @Value("${spring.security.oauth2.client.provider.google.authorization-uri}")
     private String authorRedirectUri;
+
+    @Value("${spring.security.oauth2.client.provider.facebook.authorization-uri}")
+    private String authorFacebookRedirectUri;
+
+    @Value("${google.oauth2.redirect.base-url}")
+    private String googleRedirectBaseUrl;
+
+    @Value("${oauth2.redirect.facebook.base-url}")
+    private String facebookRedirectBaseUrl;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserRequest userRequest) {
@@ -126,24 +139,34 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/oauth2/google")
-    public ResponseEntity<?> oauth2LoginGoogle(OAuth2AuthenticationToken authentication) {
-        OAuth2User oAuth2User = authentication.getPrincipal();
-        String email = oAuth2User.getAttribute("email");
-        String googleId = oAuth2User.getAttribute("sub");
+    @GetMapping("/oauth2/login/authorize/google")
+    public ResponseEntity<Void> redirectLoginToGoogle() {
+        String redirectUri = authorRedirectUri
+                + "?client_id=" + clientId
+                + "&redirect_uri=" + googleRedirectBaseUrl
+                + "&response_type=code"
+                + "&scope=email%20profile";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(URI.create(redirectUri));
+        return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
+    }
 
-        AuthResponse authResponse = authService.loginWithGoogle(email, googleId);
+    @GetMapping("/oauth2/google")
+    public ResponseEntity<?> oauth2LoginGoogle(@RequestParam String code) {
+        AuthResponse authResponse = authService.loginWithGoogle(code);
         return ResponseEntity.ok().body(authResponse);
     }
 
-    @GetMapping("/oauth2/facebook")
-    public ResponseEntity<?> oauth2LoginFacebook(OAuth2AuthenticationToken authentication) {
-        OAuth2User oAuth2User = authentication.getPrincipal();
-        String email = oAuth2User.getAttribute("email");
-        String facebookId = oAuth2User.getAttribute("id");
-
-        AuthResponse authResponse = authService.loginWithFacebook(email, facebookId);
-        return ResponseEntity.ok().body(authResponse);
+    @GetMapping("/oauth2/login/authorize/facebook")
+    public ResponseEntity<Void> oauth2LoginFacebook() {
+        String redirectUri = authorFacebookRedirectUri
+                + "?client_id=" + clientFacebookId
+                + "&redirect_uri=" + facebookRedirectBaseUrl
+                + "&response_type=code"
+                + "&scope=email,public_profile";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(URI.create(redirectUri));
+        return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
     }
 
     @GetMapping("/oauth2/authorize/google")
@@ -158,23 +181,24 @@ public class AuthController {
         return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
     }
 
+    @GetMapping("/login-success")
+    @ResponseBody
+    public String loginSuccess(@AuthenticationPrincipal OidcUser principal) {
+        String userName = principal != null ? principal.getFullName() : "User";
+        return "Login successful! Welcome, " + userName;
+    }
+
+    @GetMapping("/login-failure")
+    @ResponseBody
+    public String loginFailure() {
+        return "Login failed. Please try again.";
+    }
+
     @GetMapping("/oauth2/callback")
     public ResponseEntity<?> handleGoogleCallback(@RequestParam String code) {
         AuthResponse authResponse = authService.linkGoogleAccount(code);
         return ResponseEntity.ok(authResponse);
     }
-
-//    @PostMapping("/link-google")
-//    @PreAuthorize("isAuthenticated()")
-//    public ResponseEntity<?> linkFacebookAccount(@RequestParam String code) {
-//        try{
-//            AuthResponse authResponse = authService.linkFacebookAccount(code);
-//            return ResponseEntity.ok(authResponse);
-//        }catch (AppException e){
-//            return ResponseEntity.status(ErrorCode.FACEBOOK_LINK_FOUND.getHttpStatus())
-//                    .body(ErrorCode.FACEBOOK_LINK_FOUND.getMessage());
-//        }
-//    }
 
 //    public function changePassword(UserChangePassword $userChangePassword, $id){
 //        return $this->authService->changePassword($id, $userChangePassword->validated());

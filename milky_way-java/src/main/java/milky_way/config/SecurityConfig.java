@@ -38,7 +38,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
-                        .loginPage("/oauth2/authorization/google")
+                        .loginPage("/oauth2") //authorization/google
                         .defaultSuccessUrl("/login-success", true)
                         .failureUrl("/login-failure")
                 );

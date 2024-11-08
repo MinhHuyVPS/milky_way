@@ -22,10 +22,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -54,6 +50,9 @@ public class AuthService {
 
     @Value("${spring.security.oauth2.client.provider.google.user-info-uri}")
     private String userInfoUri;
+
+    @Value("${google.oauth2.redirect.base-url}")
+    private String googleRedirectBaseUrl;
 
     @Autowired
     private UserRepository userRepository;
@@ -177,12 +176,34 @@ public class AuthService {
         return new UserProfileResponse(user.getUsername(), user.getEmail(), user.getFirstname(), user.getLastname(), user.getPhone(), user.getAddress(), user.getBirthday());
     }
 
-    public AuthResponse loginWithGoogle(String googleEmail, String googleId) {
+    @Transactional
+    public AuthResponse loginWithGoogle(String code) {
+        String accessToken = exchangeCodeForAccessTokenLogin(code);
+        OAuth2User googleUser = fetchUserInfoFromGoogle(accessToken);
+        String googleEmail = googleUser.getAttribute("email");
+        String googleId = googleUser.getAttribute("sub");
         return handleOAuth2GoogleLogin(googleEmail, googleId);
     }
 
-    public AuthResponse loginWithFacebook(String email, String facebookId) {
-        return handleOAuth2FaceBookLogin(email, facebookId);
+    private String exchangeCodeForAccessTokenLogin(String code) {
+        String tokenEndpoint = tokenUri;
+        Map<String, String> params = new HashMap<>();
+        params.put("client_id", clientId);
+        params.put("client_secret", clientSecret);
+        params.put("redirect_uri", googleRedirectBaseUrl);
+        params.put("grant_type", "authorization_code");
+        params.put("code", code);
+        try {
+            var response = restTemplate.postForEntity(tokenEndpoint, params, Map.class);
+            var responseBody = response.getBody();
+            if (responseBody == null || responseBody.get("access_token") == null) {
+                throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+            }
+            return (String) responseBody.get("access_token");
+        } catch (HttpClientErrorException e) {
+            System.out.println("Error response: " + e.getResponseBodyAsString());
+            throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+        }
     }
 
     private AuthResponse handleOAuth2GoogleLogin(String googleEmail, String googleId) {
@@ -216,7 +237,7 @@ public class AuthService {
         if (user.getGoogleId() == null && googleId != null) {
             user.setGoogleId(encryptedGoogleId);
             userRepository.save(user);
-        } else if (user.getGoogleId() != null && !user.getGoogleId().equals(googleId)) {
+        } else if (user.getGoogleId() != null &&  !passwordEncoder.matches(googleId, user.getGoogleId())) {
             throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
         }
     }
@@ -231,6 +252,10 @@ public class AuthService {
 
     private String encryptGoogleId(String googleId) {
         return passwordEncoder.encode(googleId);
+    }
+
+    public AuthResponse loginWithFacebook(String email, String facebookId) {
+        return handleOAuth2FaceBookLogin(email, facebookId);
     }
 
     private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId) {
