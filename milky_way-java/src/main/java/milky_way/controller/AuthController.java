@@ -1,12 +1,14 @@
 package milky_way.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import milky_way.dto.request.UserRequest;
-import milky_way.dto.request.UserRequestLogin;
-import milky_way.dto.response.AuthLoginResponse;
-import milky_way.dto.response.AuthResponse;
-import milky_way.dto.response.UserProfileResponse;
-import milky_way.dto.response.UserResponse;
+import milky_way.dto.request.auth.PasswordResetRequest;
+import milky_way.dto.request.auth.ResetPasswordRequest;
+import milky_way.dto.request.user.UserRequest;
+import milky_way.dto.request.user.UserRequestLogin;
+import milky_way.dto.response.auth.AuthLoginResponse;
+import milky_way.dto.response.auth.AuthResponse;
+import milky_way.dto.response.user.UserProfileResponse;
+import milky_way.dto.response.user.UserResponse;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
 import milky_way.service.AuthService;
@@ -20,9 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
@@ -206,21 +206,15 @@ public class AuthController {
         return ResponseEntity.ok(authResponse);
     }
 
-//    public function changePassword(UserChangePassword $userChangePassword, $id){
-//        return $this->authService->changePassword($id, $userChangePassword->validated());
-//    }
-//    public function sendResetLinkEmail(UserSendResetLinkEmail $userSendResetLinkEmail){
-//        try{
-//            return $this->authService->sendResetLinkEmail($userSendResetLinkEmail->validated());
-//        }catch(\Throwable $th){
-//            return response()->json(['message' => ErrorCode::SEND_EMAIL, 'code' => Response::HTTP_NOT_FOUND]);
-//        }
-//    }
-//    public function resetPassword(UserResetPassword $userResetPassword){
-//        try{
-//            return $this->authService->resetPassword($userResetPassword->validated());
-//        }catch(\Throwable $th){
-//            return response()->json(['message' => ErrorCode::RESET_PASSWORD, 'code' => Response::HTTP_NOT_FOUND]);
-//        }
-//    }
+    @PostMapping("/send-reset-password-email")
+    public ResponseEntity<String> sendResetPasswordEmail(@RequestBody PasswordResetRequest request) {
+        authService.sendResetPasswordEmail(request.getEmail());
+        return ResponseEntity.ok(Notification.RESET_PASSWORD.getValue());
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(Notification.RESET_PASSWORD_SUCCESSFUL.getValue());
+    }
 }

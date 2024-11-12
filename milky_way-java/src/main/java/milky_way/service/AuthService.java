@@ -2,9 +2,13 @@ package milky_way.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
-import milky_way.dto.request.UserRequest;
-import milky_way.dto.request.UserRequestLogin;
-import milky_way.dto.response.*;
+import milky_way.dto.request.user.UserRequest;
+import milky_way.dto.request.user.UserRequestLogin;
+import milky_way.dto.response.auth.AuthLoginResponse;
+import milky_way.dto.response.auth.AuthResponse;
+import milky_way.dto.response.session.SessionResponse;
+import milky_way.dto.response.user.UserProfileResponse;
+import milky_way.dto.response.user.UserResponse;
 import milky_way.entity.Role;
 import milky_way.entity.Session;
 import milky_way.entity.User;
@@ -15,13 +19,15 @@ import milky_way.repository.RoleRepository;
 import milky_way.repository.UserRepository;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
+import milky_way.utils.OtpStorage;
 import milky_way.utils.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -30,7 +36,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
 
-import java.time.LocalDate;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -69,6 +75,9 @@ public class AuthService {
     @Value("${oauth2.redirect.facebook.base-url}")
     private String facebookRedirectBaseUrl;
 
+    @Value("${jwt.signerKey}")
+    private String SECRET_KEY;
+
     @Autowired
     private UserRepository userRepository;
 
@@ -93,6 +102,10 @@ public class AuthService {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private JavaMailSender mailSender;
+
+    @Transactional
     public UserResponse registerUser(UserRequest userRequest) {
         if (userRepository.existsByEmail(userRequest.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXIST);
@@ -102,20 +115,20 @@ public class AuthService {
         }
         User user = userMapper.toUser(userRequest);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        Optional<Role> userRole = roleRepository.findByName(UserRole.USER.getValue());
-        if (userRole.isEmpty()) {
-            Role newRole = Role.builder()
-                    .name(UserRole.USER.getValue())
-                    .description(Notification.REGISTER.getValue())
-                    .build();
-            roleRepository.save(newRole);
-            userRole = Optional.of(newRole);
-        }
-        user.setRoles(Collections.singleton(userRole.get()));
+        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
+                .orElseGet(() -> {
+                    Role newRole = Role.builder()
+                            .name(UserRole.USER.getValue())
+                            .description(Notification.REGISTER.getValue())
+                            .build();
+                    return roleRepository.save(newRole);
+                });
+        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         User saveUser = userRepository.save(user);
         return userMapper.toUserResponse(saveUser);
     }
 
+    @Transactional
     public Optional<AuthResponse> loginUser(UserRequestLogin userRequest) {
         Optional<User> user = Optional.ofNullable(userRepository.findByEmail(userRequest.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST)));
@@ -134,6 +147,7 @@ public class AuthService {
         return Optional.of(authResponse);
     }
 
+    @Transactional
     public AuthLoginResponse refreshToken(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -162,6 +176,7 @@ public class AuthService {
         return authResponse;
     }
 
+    @Transactional
     public void logout(HttpServletRequest request) {
         String token = tokenBlacklistService.getJwtFromRequest(request);
         if (token != null) {
@@ -174,6 +189,7 @@ public class AuthService {
         }
     }
 
+    @Transactional
     public UserProfileResponse getProfile(HttpServletRequest request) {
         String token = tokenBlacklistService.getJwtFromRequest(request);
         if (token == null || !jwtTokenProvider.validateToken(token)) {
@@ -248,7 +264,7 @@ public class AuthService {
     }
 
     private void linkGoogleOAuthProviderIfNecessary(User user, String googleId) {
-        String encryptedGoogleId = encryptGoogleId(googleId);
+        String encryptedGoogleId = encryptId(googleId);
         if (user.getGoogleId() == null && googleId != null) {
             user.setGoogleId(encryptedGoogleId);
             userRepository.save(user);
@@ -265,17 +281,25 @@ public class AuthService {
         return user;
     }
 
-    private String encryptGoogleId(String googleId) {
+    private String encryptId(String googleId) {
         return passwordEncoder.encode(googleId);
     }
 
+    @Transactional
     public AuthResponse loginWithFacebook(String code) {
         String accessToken = exchangeCodeForAccessTokenLoginFacebook(code);
         OAuth2User facebookUser = fetchUserInfoFromFacebook(accessToken);
         String facebookEmail = facebookUser.getAttribute("email");
         String facebookId = facebookUser.getAttribute("id");
         String facebookName = facebookUser.getAttribute("name");
-        String avatar = facebookUser.getAttribute("picture");
+        Map<String, Object> pictureData = (Map<String, Object>) facebookUser.getAttribute("picture");
+        String avatar = null;
+        if (pictureData != null) {
+            Map<String, Object> data = (Map<String, Object>) pictureData.get("data");
+            if (data != null) {
+                avatar = (String) data.get("url");
+            }
+        }
         return handleOAuth2FaceBookLogin(facebookEmail, facebookId, facebookName, avatar);
     }
 
@@ -301,20 +325,31 @@ public class AuthService {
     }
 
     private OAuth2User fetchUserInfoFromFacebook(String accessToken) {
-        String userInfoEndpointUri = facebookUserInfoUri; //https://graph.facebook.com/v12.0/me?fields=id,name,email,picture
+        String userInfoEndpointUri = facebookUserInfoUri; // https://graph.facebook.com/v12.0/me?fields=id,name,email,picture
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         HttpEntity<?> entity = new HttpEntity<>(headers);
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
+            Map<String, Object> userAttributes = response.getBody();
 
-        Map<String, Object> userAttributes = response.getBody();
-        return new DefaultOAuth2User(
-//                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")), nếu lỗi thì đổi lại là dòng này
-                Collections.emptySet(),
-                Objects.requireNonNull(userAttributes),
-                "id");
+            if (userAttributes == null) {
+                throw new RuntimeException("No user attributes found in response");
+            }
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            authorities.add(new SimpleGrantedAuthority(UserRole.USER.getValue()));
+            return new DefaultOAuth2User(
+                    Collections.emptySet(),
+                    userAttributes,
+                    "id"
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error fetching user info from Facebook", e);
+        }
     }
+
 
     private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId, String facebookName, String avatar) {
         User user = findOrFaceBookCreateUser(email, facebookId, facebookName, avatar);
@@ -326,7 +361,7 @@ public class AuthService {
         authResponse.setAccessToken(newAccessToken);
         authResponse.setRefreshToken(newRefreshToken);
         authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
-        authResponse.setGoogleId(facebookId);
+        authResponse.setFacebookId(facebookId);
         return authResponse;
     }
 
@@ -342,8 +377,9 @@ public class AuthService {
     }
 
     private void linkFaceBookOAuthProviderIfNecessary(User user, String facebookId, String facebookName, String avatar) {
+        String encryptedFacebookId = encryptId(facebookId);
         if (user.getFacebookId() == null && facebookId != null) {
-            user.setGoogleId(facebookId);
+            user.setFacebookId(encryptedFacebookId);
         }
         if(user.getUsername() == null && facebookName != null){
             user.setUsername(facebookName);
@@ -351,20 +387,39 @@ public class AuthService {
         if(user.getAvatar() == null && avatar != null){
             user.setAvatar(avatar);
         }
-        else {
+        else if (user.getFacebookId() != null &&  !passwordEncoder.matches(facebookId, user.getFacebookId())) {
             throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
         }
+        // sau khi sửa thì cần check lại xem thêm role có đúng không
+//        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
+//                .orElseGet(() -> {
+//                    Role newRole = Role.builder()
+//                            .name(UserRole.USER.getValue())
+//                            .description(Notification.REGISTER.getValue())
+//                            .build();
+//                    return roleRepository.save(newRole);
+//                });
+//        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         userRepository.save(user);
     }
 
     private User createFaceBookUserWithOAuth(String email, String facebookId, String facebookName, String avatar) {
         User user = new User();
         user.setEmail(email);
+        user.setFacebookEmail(email);
         user.setUsername(facebookName);
         user.setAvatar(avatar);
-        if (facebookId != null) user.setGoogleId(facebookId);
-        userRepository.save(user);
-        return user;
+        // sau khi sửa thì cần check lại xem thêm role có đúng không
+//        if (facebookId != null) user.setFacebookId(facebookId);
+//        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
+//                .orElseGet(() -> roleRepository.save(
+//                        Role.builder()
+//                                .name(UserRole.USER.getValue())
+//                                .description(Notification.REGISTER.getValue())
+//                                .build()
+//                ));
+//        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
+        return userRepository.save(user);
     }
 
     @Transactional
@@ -376,7 +431,7 @@ public class AuthService {
         User existingUser = userRepository.findByEmail(googleEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
         existingUser.setGoogleEmail(googleEmail);
-        existingUser.setGoogleId(encryptGoogleId(googleId));
+        existingUser.setGoogleId(encryptId(googleId));
         User updatedUser = userRepository.save(existingUser);
         return userMapper.toAuthResponse(updatedUser);
     }
@@ -418,25 +473,30 @@ public class AuthService {
                 "sub");
     }
 
-//    private User getCurrentAuthenticatedUser() {
-//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//        System.out.println("Authentication: " + authentication);
-//        if (authentication != null && authentication.isAuthenticated()) {
-//            String email = ((UserDetails) authentication.getPrincipal()).getUsername();
-//            return userRepository.findByEmail(email)
-//                    .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
-//        }
-//        throw new AppException(ErrorCode.USER_NOT_AUTHENTICATED);
-//    }
+    public String generateOtpToken() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
+    }
 
-//    public AuthResponse linkFacebookAccount(String code) {
-//        OAuth2User facebookUser = getFacebookUser(code);
-//        String googleEmail = facebookUser.getAttribute("email");
-//        String facebookId = facebookUser.getAttribute("id");
-//        User currentUser = getCurrentAuthenticatedUser();
-//        currentUser.setGoogle_email(googleEmail);
-//        currentUser.setFacebookId(facebookId);
-//        User updatedUser = userRepository.save(currentUser);
-//        return userMapper.toAuthResponse(updatedUser);
-//    }
+    public void sendResetPasswordEmail(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        String token = generateOtpToken();
+        OtpStorage.storeOtp(email, token);
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setTo(user.getEmail());
+        mailMessage.setSubject("Reset Password");
+        mailMessage.setText("To reset your password, please use the following token: " + token);
+        mailSender.send(mailMessage);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        String decodedToken = new String(Base64.getDecoder().decode(token));
+        String email = decodedToken.split(":")[0];
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.BAD_REQUEST));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }

@@ -1,6 +1,6 @@
 package milky_way.exception;
 
-import milky_way.dto.response.ErrorResponse;
+import milky_way.dto.response.error.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -18,7 +18,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception e) {
-        ErrorResponse errorResponse = new ErrorResponse("Unexpected error occurred", ErrorCode.UNKNOWN_ERROR);
+        e.printStackTrace();
+        ErrorResponse errorResponse = new ErrorResponse(ErrorCode.UNKNOWN_ERROR.getMessage(), ErrorCode.UNKNOWN_ERROR);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 }

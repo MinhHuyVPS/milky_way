@@ -1,16 +1,18 @@
-package milky_way.dto.response;
+package milky_way.dto.response.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import milky_way.entity.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserResponse {
-    private String id;
+public class UserUpdateResponse {
     private String username;
     private String email;
     private String firstname;
@@ -19,6 +21,12 @@ public class UserResponse {
     private String address;
     private String status;
     private LocalDate birthday;
+    private LocalDateTime delete_at;
     private LocalDateTime create_at;
     private LocalDateTime update_at;
+    private Set<Role> roles;
+    private Set<Order> orders;
+    private Set<ProductReview> productReviews;
+    private Cart cart;
+    private Seller sellers;
 }

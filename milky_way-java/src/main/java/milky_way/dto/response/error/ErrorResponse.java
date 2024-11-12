@@ -1,4 +1,4 @@
-package milky_way.dto.response;
+package milky_way.dto.response.error;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

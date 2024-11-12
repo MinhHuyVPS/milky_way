@@ -1,4 +1,4 @@
-package milky_way.dto.request;
+package milky_way.dto.request.user;
 
 import lombok.Data;
 

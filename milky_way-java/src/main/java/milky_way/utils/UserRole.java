@@ -1,9 +1,9 @@
 package milky_way.utils;
 
 public enum UserRole {
-    ADMIN("admin"),
-    SELLER("seller"),
-    USER("user");
+    ADMIN("ROLE_ADMIN"),
+    SELLER("ROLE_SELLER"),
+    USER("ROLE_USER");
 
     private final String value;
 
