@@ -482,20 +482,31 @@ public class AuthService {
     public void sendResetPasswordEmail(String email){
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        String token = generateOtpToken();
-        OtpStorage.storeOtp(email, token);
+        String opt = generateOtpToken();
+        OtpStorage.storeOtp(email, opt);
         SimpleMailMessage mailMessage = new SimpleMailMessage();
         mailMessage.setTo(user.getEmail());
-        mailMessage.setSubject("Reset Password");
-        mailMessage.setText("To reset your password, please use the following token: " + token);
+        mailMessage.setSubject(Notification.RESET_PASSWORD.getValue());
+        mailMessage.setText(Notification.TEXT_RESET_PASSWORD.getValue() + opt);
         mailSender.send(mailMessage);
     }
 
-    public void resetPassword(String token, String newPassword) {
-        String decodedToken = new String(Base64.getDecoder().decode(token));
-        String email = decodedToken.split(":")[0];
+    public String  verifyOtp(String otp) {
+        String email = OtpStorage.getEmailByOtp(otp);
+        if (email == null) {
+            throw new AppException(ErrorCode.INVALID_OTP);
+        }
+        OtpStorage.removeOtp(email);
+        return otp;
+    }
+
+    public void resetPassword(String otp, String newPassword) {
+        String email = OtpStorage.getEmailByOtp(otp);
+        if (email == null) {
+            throw new AppException(ErrorCode.INVALID_OTP);
+        }
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.BAD_REQUEST));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }

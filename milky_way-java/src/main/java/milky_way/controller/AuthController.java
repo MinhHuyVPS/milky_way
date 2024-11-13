@@ -1,6 +1,7 @@
 package milky_way.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import milky_way.dto.request.auth.OtpRequest;
 import milky_way.dto.request.auth.PasswordResetRequest;
 import milky_way.dto.request.auth.ResetPasswordRequest;
 import milky_way.dto.request.user.UserRequest;
@@ -212,9 +213,15 @@ public class AuthController {
         return ResponseEntity.ok(Notification.RESET_PASSWORD.getValue());
     }
 
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(@RequestBody OtpRequest request) {
+        String otp = authService.verifyOtp(request.getOtp());
+        return ResponseEntity.ok(otp);
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
-        authService.resetPassword(request.getToken(), request.getNewPassword());
+        authService.resetPassword(request.getOtp(), request.getNewPassword());
         return ResponseEntity.ok(Notification.RESET_PASSWORD_SUCCESSFUL.getValue());
     }
 }

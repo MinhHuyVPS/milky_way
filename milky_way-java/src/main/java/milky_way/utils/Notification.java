@@ -1,7 +1,7 @@
 package milky_way.utils;
 
 public enum Notification {
-
+    TEXT_RESET_PASSWORD("To reset your password, please use the following token: "),
     REGISTER("Default role for new users"),
     INVALID_CREDENTIALS("Invalid credentials!"),
     LOGOUT("Logout successful!"),
