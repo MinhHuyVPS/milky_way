@@ -111,9 +111,13 @@ public class JwtTokenProvider {
     }
 
     public Claims getClaimsFromJWT(String token) {
+        if (token.split("\\.").length != 3) {
+            throw new IllegalArgumentException("Invalid JWT token format. Token must contain exactly 2 periods.");
+        }
         try {
-            return Jwts.parser()
+            return Jwts.parserBuilder()
                     .setSigningKey(jwtSecret)
+                    .build()
                     .parseClaimsJws(token)
                     .getBody();
         } catch (Exception e) {

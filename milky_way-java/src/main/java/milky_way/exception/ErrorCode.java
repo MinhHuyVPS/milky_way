@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    INVALID_OLD_PASSWORD(412, "Invalid old password", HttpStatus.BAD_REQUEST),
     INVALID_OTP(411, "invalid otp",  HttpStatus.NOT_FOUND),
     BAD_REQUEST(400, "bad request", HttpStatus.BAD_REQUEST),
     INVALID_RESPONSE_CONTENT(1000,"loi deo alm", HttpStatus.NO_CONTENT),

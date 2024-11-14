@@ -142,7 +142,8 @@ public class AuthService {
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(accessToken);
         authResponse.setRefreshToken(refreshToken);
-//        authResponse.setGoogleId(user.get().getGoogleId());
+        authResponse.setGoogleId(user.get().getGoogleId());
+        authResponse.setFacebookId(user.get().getFacebookId());
         authResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
         return Optional.of(authResponse);
     }
@@ -507,6 +508,16 @@ public class AuthService {
         }
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    public void changePassword(String email, String oldPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new AppException(ErrorCode.INVALID_OLD_PASSWORD);
+        }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }

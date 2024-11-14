@@ -1,6 +1,7 @@
 package milky_way.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.auth.OtpRequest;
 import milky_way.dto.request.auth.PasswordResetRequest;
 import milky_way.dto.request.auth.ResetPasswordRequest;
@@ -14,6 +15,7 @@ import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
 import milky_way.service.AuthService;
 import milky_way.service.TokenBlacklistService;
+import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -120,6 +123,8 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request) {
+        String token = request.getHeader("Authorization");
+        System.out.println("Received Token: " + token);
         authService.logout(request);
         return ResponseEntity.ok(Notification.LOGOUT.getValue());
     }
@@ -223,5 +228,13 @@ public class AuthController {
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.getOtp(), request.getNewPassword());
         return ResponseEntity.ok(Notification.RESET_PASSWORD_SUCCESSFUL.getValue());
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody ChangePasswordRequest request) {
+        String email = userDetails.getUsername();
+        String id = userDetails.getId();
+        authService.changePassword(email, request.getOldPassword(), request.getNewPassword());
+        return ResponseEntity.ok("Password changed successfully.");
     }
 }

@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import milky_way.entity.Role;
 import milky_way.service.CustomUserDetailsService;
+import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -66,7 +67,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void handleAccessToken(String email, Claims claims) {
         List<GrantedAuthority> authorities = jwtTokenProvider.getAuthoritiesFromJWT(String.valueOf(claims));
-        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+        String id = claims.get("userId", String.class);
+        CustomUserDetails userDetails = new CustomUserDetails(id, email, "", authorities);
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authenticationToken);
