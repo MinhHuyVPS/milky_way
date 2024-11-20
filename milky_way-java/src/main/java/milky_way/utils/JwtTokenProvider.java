@@ -53,6 +53,7 @@ public class JwtTokenProvider {
                 .setSubject(email)
                 .claim("roles", rolesJson)
                 .claim("type", "access")
+//                .claim("id", id)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + jwtExpirationInMs))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
@@ -84,14 +85,19 @@ public class JwtTokenProvider {
     }
 
     public List<GrantedAuthority> getAuthoritiesFromJWT(String token) {
-        String rolesJson = getClaimsFromJWT(token).get("roles", String.class);
+//        System.out.println("getAuthoritiesFromJWT - Token: " + token);
+        Claims claims = getClaimsFromJWT(token);
+//        System.out.println("getAuthoritiesFromJWT - Claims: " + claims);
+        String rolesJson = claims.get("roles", String.class);
+//        System.out.println("getAuthoritiesFromJWT - Roles JSON: " + rolesJson);
         List<String> roles = null;
         try {
             roles = objectMapper.readValue(rolesJson, new TypeReference<List<String>>() {});
+//            System.out.println("getAuthoritiesFromJWT - Parsed Roles: " + roles);
         } catch (JsonProcessingException e) {
+//            System.err.println("getAuthoritiesFromJWT - Failed to parse roles: " + e.getMessage());
             throw new RuntimeException(e);
         }
-
         return roles.stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
@@ -111,17 +117,21 @@ public class JwtTokenProvider {
     }
 
     public Claims getClaimsFromJWT(String token) {
+//        System.out.println("getClaimsFromJWT - Token: " + token);
         if (token.split("\\.").length != 3) {
+//            System.err.println("getClaimsFromJWT - Invalid token format. Token must contain exactly 2 periods.");
             throw new IllegalArgumentException("Invalid JWT token format. Token must contain exactly 2 periods.");
         }
         try {
-            return Jwts.parserBuilder()
+            Claims claims = Jwts.parserBuilder()
                     .setSigningKey(jwtSecret)
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
+//            System.out.println("getClaimsFromJWT - Parsed Claims: " + claims);
+            return claims;
         } catch (Exception e) {
-            System.out.println("Failed to get claims from token: " + e.getMessage());
+//            System.out.println("Failed to get claims from token: " + e.getMessage());
             throw e;
         }
     }
@@ -133,7 +143,7 @@ public class JwtTokenProvider {
     public boolean validateToken(String authToken) {
         try {
             if (isTokenBlacklisted(authToken)) {
-                System.out.println("Token is blacklisted.");
+//                System.out.println("Token is blacklisted.");
                 return false;
             }
             Jwts.parser()
@@ -141,7 +151,7 @@ public class JwtTokenProvider {
                     .parseClaimsJws(authToken);
             return true;
         } catch (Exception e) {
-            System.out.println("Token validation failed: " + e.getMessage());
+//            System.out.println("Token validation failed: " + e.getMessage());
             return false;
         }
     }

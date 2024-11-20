@@ -138,6 +138,7 @@ public class AuthService {
         Set<Role> roles = user.get().getRoles();
         String accessToken = jwtTokenProvider.generateToken(user.get().getEmail(), roles);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getEmail(), roles);
+        sessionService.invalidateAllSessions(user.get().getEmail());
         Session session = sessionService.createSession(user.get());
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(accessToken);

@@ -51,7 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String tokenType = claims.get("type", String.class);
             String email = claims.getSubject();
             if ("access".equals(tokenType)) {
-                handleAccessToken(email, claims);
+                handleAccessToken(email, claims, token);
             } else if ("refresh".equals(tokenType)) {
                 handleRefreshToken(token, email, response);
                 return;
@@ -65,10 +65,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
 
-    private void handleAccessToken(String email, Claims claims) {
-        List<GrantedAuthority> authorities = jwtTokenProvider.getAuthoritiesFromJWT(String.valueOf(claims));
-        String id = claims.get("userId", String.class);
-        CustomUserDetails userDetails = new CustomUserDetails(id, email, "", authorities);
+    private void handleAccessToken(String email, Claims claims, String token) {
+//        System.out.println("handleAccessToken - Email: " + email);
+//        System.out.println("handleAccessToken - Claims: " + claims);
+        List<GrantedAuthority> authorities = jwtTokenProvider.getAuthoritiesFromJWT(token);
+//        System.out.println("handleAccessToken - Authorities: " + authorities);
+//        String email = claims.get("email", String.class);
+//        System.out.println("handleAccessToken - User ID: " + id);
+        CustomUserDetails userDetails = new CustomUserDetails(email, "", authorities);
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authenticationToken);

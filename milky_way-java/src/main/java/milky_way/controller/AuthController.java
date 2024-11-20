@@ -1,6 +1,7 @@
 package milky_way.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.auth.OtpRequest;
 import milky_way.dto.request.auth.PasswordResetRequest;
@@ -19,6 +20,7 @@ import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,15 +29,18 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
+import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("api/v1/auth")
+@Validated
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
@@ -70,7 +75,7 @@ public class AuthController {
     private String facebookRedirectBaseUrl;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody UserRequest userRequest) {
+    public ResponseEntity<?> register(@Valid @RequestBody UserRequest userRequest) {
         try {
             UserResponse userResponse = authService.registerUser(userRequest);
             return ResponseEntity.ok(userResponse);
@@ -123,8 +128,11 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        System.out.println("Received Token: " + token);
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest().body("Invalid token format");
+        }
+        String token = authorizationHeader.substring(7);
         authService.logout(request);
         return ResponseEntity.ok(Notification.LOGOUT.getValue());
     }
@@ -233,7 +241,6 @@ public class AuthController {
     @PostMapping("/change-password")
     public ResponseEntity<String> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody ChangePasswordRequest request) {
         String email = userDetails.getUsername();
-        String id = userDetails.getId();
         authService.changePassword(email, request.getOldPassword(), request.getNewPassword());
         return ResponseEntity.ok("Password changed successfully.");
     }

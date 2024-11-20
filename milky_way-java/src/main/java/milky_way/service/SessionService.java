@@ -1,12 +1,17 @@
 package milky_way.service;
 
+import jakarta.transaction.Transactional;
 import milky_way.entity.Session;
 import milky_way.entity.User;
+import milky_way.exception.AppException;
+import milky_way.exception.ErrorCode;
 import milky_way.repository.SessionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -45,5 +50,13 @@ public class SessionService {
     public void invalidateSession(String email) {
         Optional<Session> session = sessionRepository.findByUserEmail(email);
         session.ifPresent(value -> sessionRepository.delete(value));
+    }
+
+    @Transactional
+    public void invalidateAllSessions(String email) {
+        List<Session> sessions = sessionRepository.findAllByUserEmail(email);
+        if (!sessions.isEmpty()) {
+            sessionRepository.deleteAll(sessions);
+        }
     }
 }
