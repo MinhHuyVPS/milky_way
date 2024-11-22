@@ -36,15 +36,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws IOException, ServletException {
-        AntPathMatcher pathMatcher = new AntPathMatcher();
         String requestUri = request.getRequestURI();
-        if (requestUri.equals("/api/v1/auth/register") ||
-                requestUri.equals("/api/v1/auth/login") ||
-                requestUri.equals("/api/v1/auth/send-reset-password-email") ||
-                pathMatcher.match("/api/v1/auth/oauth2/**", requestUri)) {
+        if (isPublicEndpoint(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
+        logger.info("Processing request: {}", request.getRequestURI());
         String token = getJwtFromRequest(request);
         if (token != null && jwtTokenProvider.validateToken(token)) {
             Claims claims = jwtTokenProvider.getClaimsFromJWT(token);
@@ -54,7 +51,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 handleAccessToken(email, claims, token);
             } else if ("refresh".equals(tokenType)) {
                 handleRefreshToken(token, email, response);
-                return;
             }
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -64,14 +60,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    private boolean isPublicEndpoint(String requestUri) {
+        AntPathMatcher pathMatcher = new AntPathMatcher();
+        return requestUri.equals("/api/v1/auth/register") ||
+                requestUri.equals("/api/v1/auth/login") ||
+                requestUri.equals("/api/v1/auth/send-reset-password-email") ||
+                pathMatcher.match("/api/v1/auth/oauth2/**", requestUri);
+    }
 
     private void handleAccessToken(String email, Claims claims, String token) {
-//        System.out.println("handleAccessToken - Email: " + email);
-//        System.out.println("handleAccessToken - Claims: " + claims);
         List<GrantedAuthority> authorities = jwtTokenProvider.getAuthoritiesFromJWT(token);
-//        System.out.println("handleAccessToken - Authorities: " + authorities);
-//        String email = claims.get("email", String.class);
-//        System.out.println("handleAccessToken - User ID: " + id);
         CustomUserDetails userDetails = new CustomUserDetails(email, "", authorities);
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
@@ -79,24 +77,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void handleRefreshToken(String token, String email, HttpServletResponse response) throws IOException {
-        boolean isRefreshTokenValid = checkRefreshTokenValidity(token);
-        if (isRefreshTokenValid) {
-            Set<Role> roles = jwtTokenProvider.getAuthoritiesFromJWT(token).stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .map(Role::new)
-                    .collect(Collectors.toSet());
-            String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-            response.setHeader("Authorization", "Bearer " + newAccessToken);
-            response.setContentType("application/json");
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().write("{\"accessToken\": \"" + newAccessToken + "\"}");
-        } else {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("{\"error\": \"Refresh token is invalid or expired.\"}");
-            response.setContentType("application/json");
-        }
+        List<GrantedAuthority> authorities = jwtTokenProvider.getAuthoritiesFromJWT(token);
+        CustomUserDetails userDetails = new CustomUserDetails(email, "", authorities);
+        UsernamePasswordAuthenticationToken authenticationToken =
+                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
     }
-
 
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
@@ -106,14 +92,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
-    public boolean checkRefreshTokenValidity(String token) {
-        try {
-            var claims = jwtTokenProvider.getClaimsFromJWT(token);
-            Date expirationDate = claims.getExpiration();
-            return expirationDate != null && expirationDate.after(new Date());
-        } catch (Exception e) {
-            return false;
-        }
-    }
+//    public boolean checkRefreshTokenValidity(String token) {
+//        try {
+//            var claims = jwtTokenProvider.getClaimsFromJWT(token);
+//            Date expirationDate = claims.getExpiration();
+//            return expirationDate != null && expirationDate.after(new Date());
+//        } catch (Exception e) {
+//            return false;
+//        }
+//    }
 
 }

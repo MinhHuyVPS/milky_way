@@ -109,7 +109,6 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestHeader("Authorization") String authorizationHeader) {
-        logger.info("Refreshing token");
         try {
             if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
                 throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);

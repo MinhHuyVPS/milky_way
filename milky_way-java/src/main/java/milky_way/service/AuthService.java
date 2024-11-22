@@ -113,6 +113,9 @@ public class AuthService {
         if(userRepository.existsByGoogleEmail(userRequest.getEmail())){
             throw new AppException(ErrorCode.EMAIL_EXIST);
         }
+        if(userRepository.existsByFacebookEmail(userRequest.getEmail())){
+            throw new AppException(ErrorCode.EMAIL_EXIST);
+        }
         User user = userMapper.toUser(userRequest);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         Role userRole = roleRepository.findByName(UserRole.USER.getValue())
@@ -151,7 +154,7 @@ public class AuthService {
 
     @Transactional
     public AuthLoginResponse refreshToken(String refreshToken) {
-        if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken)) {
+        if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(refreshToken);

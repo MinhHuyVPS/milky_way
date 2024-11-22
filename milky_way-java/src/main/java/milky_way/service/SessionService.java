@@ -6,6 +6,7 @@ import milky_way.entity.User;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
 import milky_way.repository.SessionRepository;
+import milky_way.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +21,13 @@ public class SessionService {
     @Autowired
     private SessionRepository sessionRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     public Optional<Session> getSession(String email) {
-        return sessionRepository.findByUserEmail(email)
-                .filter(session -> !session.isExpired());
+        Optional<User> user = userRepository.findByEmail(email);
+        return user.flatMap(value -> sessionRepository.findByUserId(value.getId())
+                .filter(session -> !session.isExpired()));
     }
 
     public Session createSession(User user) {
