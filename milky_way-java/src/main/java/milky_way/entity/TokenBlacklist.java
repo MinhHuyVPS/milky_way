@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "token_blacklist")
+@Table(name = "token_blacklists")
 public class TokenBlacklist {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -1,5 +1,6 @@
 package milky_way.controller;
 
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import milky_way.dto.request.auth.ChangePasswordRequest;
@@ -26,7 +27,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.validation.annotation.Validated;
@@ -108,6 +111,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> refreshToken(@RequestHeader("Authorization") String authorizationHeader) {
         try {
             if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
@@ -138,11 +142,17 @@ public class AuthController {
 
     @GetMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    @PostAuthorize("returnObject.username == authentication.name")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
             UserProfileResponse profile = authService.getProfile(request);
-            return ResponseEntity.ok(profile);
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (profile.getEmail().equals(authentication.getName())) {
+                return ResponseEntity.ok(profile);
+            } else {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ErrorCode.ACCESS_DENIED.getMessage());
+            }
         } catch (AppException e) {
             return ResponseEntity.status(e.getErrorCode().getHttpStatus())
                     .body(e.getErrorCode().getMessage());

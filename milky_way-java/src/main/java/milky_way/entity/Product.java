@@ -23,8 +23,8 @@ public class Product {
     private String description;
     private Long price;
     private Long stock;
-    private LocalDateTime create_at;
-    private LocalDateTime update_at;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     private Category categories;

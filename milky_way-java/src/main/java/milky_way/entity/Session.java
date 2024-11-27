@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "session")
+@Table(name = "sessions")
 public class Session {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -22,7 +22,7 @@ public class Session {
     private LocalDateTime expiresAt;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private User users;
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }

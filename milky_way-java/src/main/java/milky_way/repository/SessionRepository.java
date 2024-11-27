@@ -10,8 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface SessionRepository extends JpaRepository<Session, String> {
-    Optional<Session> findByUserEmail(String email);
-    List<Session> findAllByUserEmail(String email);
-    @Query("SELECT s FROM Session s WHERE s.user.id = :userId")
+    Optional<Session> findByUsersEmail(String email);
+    List<Session> findAllByUsersEmail(String email);
+    @Query("SELECT s FROM Session s WHERE s.users.id = :userId")
     Optional<Session> findByUserId(String userId);
 }

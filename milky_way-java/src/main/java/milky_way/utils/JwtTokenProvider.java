@@ -166,6 +166,16 @@ public class JwtTokenProvider {
         }
     }
 
+    public boolean isAccessToken(String token){
+        try{
+            Claims claims = getClaimsFromJWT(token);
+            String tokenType = claims.get("type", String.class);
+            return "access".equals(tokenType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public LocalDateTime getExpiryDateFromToken(String token) {
         Date expiration = getClaimsFromJWT(token).getExpiration();
         return expiration.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();

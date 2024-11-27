@@ -19,8 +19,8 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private Long quantity;
-    private Long unit_price;
-    private Long total_price;
+    private Long unitPrice;
+    private Long totalPrice;
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = false)
     private Order orders;

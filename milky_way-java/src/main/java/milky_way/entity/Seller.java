@@ -19,13 +19,13 @@ public class Seller {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private String store_name;
-    private String store_address;
-    private String tax_id;
-    private String contact_email;
-    private String contact_phone;
-    private LocalDateTime created_at;
-    private LocalDateTime update_at;
+    private String storeName;
+    private String storeAddress;
+    private String taxId;
+    private String contactEmail;
+    private String contactPhone;
+    private LocalDateTime createdAt;
+    private LocalDateTime updateAt;
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;

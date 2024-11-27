@@ -18,9 +18,9 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private String payment_method;
-    private String payment_status;
-    private LocalDateTime create_at;
+    private String paymentMethod;
+    private String paymentStatus;
+    private LocalDateTime createAt;
     @ManyToOne
     @JoinColumn(name = "order_id",nullable = false)
     private Order orders;

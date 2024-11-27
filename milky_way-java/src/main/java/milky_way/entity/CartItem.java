@@ -19,7 +19,7 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private Long quantity;
-    private Long unit_price;
+    private Long unitPrice;
     @ManyToOne
     @JoinColumn(name = "cart_id", nullable = false)
     private Cart carts;

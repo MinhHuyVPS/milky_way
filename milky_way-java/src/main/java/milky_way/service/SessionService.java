@@ -34,7 +34,7 @@ public class SessionService {
         Session session = Session.builder()
                 .createdAt(LocalDateTime.now())
                 .expiresAt(LocalDateTime.now().plusHours(1))
-                .user(user)
+                .users(user)
                 .build();
         return sessionRepository.save(session);
     }
@@ -48,18 +48,18 @@ public class SessionService {
     }
 
     public boolean isSessionValid(String email) {
-        Optional<Session> session = sessionRepository.findByUserEmail(email);
+        Optional<Session> session = sessionRepository.findByUsersEmail(email);
         return session.isPresent() && session.get().getExpiresAt().isAfter(LocalDateTime.now());
     }
 
     public void invalidateSession(String email) {
-        Optional<Session> session = sessionRepository.findByUserEmail(email);
+        Optional<Session> session = sessionRepository.findByUsersEmail(email);
         session.ifPresent(value -> sessionRepository.delete(value));
     }
 
     @Transactional
     public void invalidateAllSessions(String email) {
-        List<Session> sessions = sessionRepository.findAllByUserEmail(email);
+        List<Session> sessions = sessionRepository.findAllByUsersEmail(email);
         if (!sessions.isEmpty()) {
             sessionRepository.deleteAll(sessions);
         }

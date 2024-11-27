@@ -158,7 +158,7 @@ public class AuthService {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(refreshToken);
-        Optional<User> user = userRepository.findByEmail(email);
+        Optional<User> user = userRepository.findByAnyEmail(email);
         if (user.isEmpty()) {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
         }
@@ -197,19 +197,20 @@ public class AuthService {
     @Transactional
     public UserProfileResponse getProfile(HttpServletRequest request) {
         String token = tokenBlacklistService.getJwtFromRequest(request);
-        if (token == null || !jwtTokenProvider.validateToken(token)) {
+        if (token == null || !jwtTokenProvider.validateToken(token) || !jwtTokenProvider.isAccessToken(token)) {
             throw new AppException(ErrorCode.INVALID_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(token);
         if (!sessionService.isSessionValid(email)) {
             throw new AppException(ErrorCode.SESSION_INVALID);
         }
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByAnyEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
-        if (!user.getUsername().equals(email)) {
+        String userEmail = getUserEmail(user, email);
+        if (!userEmail.equals(email)) {
             throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
         }
-        return new UserProfileResponse(user.getUsername(), user.getEmail(), user.getFirstname(), user.getLastname(), user.getPhone(), user.getAddress(), user.getBirthday());
+        return new UserProfileResponse(user.getUsername(), userEmail, user.getFirstname(), user.getLastname(), user.getPhone(), user.getAddress(), user.getBirthday());
     }
 
     @Transactional
@@ -524,5 +525,17 @@ public class AuthService {
         }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    private String getUserEmail(User user, String requestedEmail) {
+        if (user.getEmail() != null && user.getEmail().equals(requestedEmail)) {
+            return user.getEmail();
+        } else if (user.getGoogleEmail() != null && user.getGoogleEmail().equals(requestedEmail)) {
+            return user.getGoogleEmail();
+        } else if (user.getFacebookEmail() != null && user.getFacebookEmail().equals(requestedEmail)) {
+            return user.getFacebookEmail();
+        } else {
+            throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
     }
 }

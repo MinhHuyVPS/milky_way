@@ -20,11 +20,11 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String status;
-    private Long total_price;
-    private String shipping_address;
-    private String payment_status;
-    private LocalDateTime create_at;
-    private LocalDateTime update_at;
+    private Long totalPrice;
+    private String shippingAddress;
+    private String paymentStatus;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;

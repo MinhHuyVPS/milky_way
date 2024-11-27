@@ -19,9 +19,9 @@ public class Cart {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private Long total_price;
-    private LocalDateTime create_at;
-    private LocalDateTime update_at;
+    private Long totalPrice;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;
