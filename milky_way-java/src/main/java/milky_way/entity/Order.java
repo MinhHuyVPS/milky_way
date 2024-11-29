@@ -21,6 +21,7 @@ public class Order {
     private String id;
     private String status;
     private Long totalPrice;
+    @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;
     private String paymentStatus;
     private LocalDateTime createAt;

@@ -20,6 +20,7 @@ public class ProductReview {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private Integer rating;
+    @Column(name = "review", columnDefinition = "TEXT")
     private String review;
     private LocalDateTime createAt;
     @ManyToOne

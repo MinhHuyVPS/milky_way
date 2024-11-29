@@ -20,6 +20,7 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String name;
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     private Long price;
     private Long stock;

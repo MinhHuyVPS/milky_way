@@ -18,6 +18,7 @@ public enum ErrorCode {
     INVALID_TOKEN(401, "invalid token", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED_ACCESS(401, "Access is denied due to invalid credentials", HttpStatus.UNAUTHORIZED),
     TOKEN_NOT_FOUND(404, "Token not found",HttpStatus.NOT_FOUND),
+    INVALID_TOKEN_FORMAT(501, "Invalid token format", HttpStatus.SERVICE_UNAVAILABLE),
     SESSION_INVALID(401, "Session is invalid or expired", HttpStatus.INTERNAL_SERVER_ERROR),
     UNKNOWN_ERROR(500, "Unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
     USER_NOT_FOUND(404, "User Not Found", HttpStatus.NOT_FOUND),
@@ -32,6 +33,7 @@ public enum ErrorCode {
     PASSWORD_INCORRECT(400, "Password is incorrect", HttpStatus.BAD_REQUEST),
     EMAIL_EXIST(409, "Email has been used!", HttpStatus.CONFLICT),
     INVALID_REFRESH_TOKEN(403, "Invalid refresh token", HttpStatus.FORBIDDEN),
+    LOGOUT_BAD_REQUEST(404, "Logout bad request" , HttpStatus.BAD_REQUEST),
     EMAIL_NOT_EXIST(404, "Email not exist", HttpStatus.NOT_FOUND);
 
     private final int code;

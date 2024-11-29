@@ -20,6 +20,7 @@ public class Seller {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String storeName;
+    @Column(name = "store_address", columnDefinition = "TEXT")
     private String storeAddress;
     private String taxId;
     private String contactEmail;

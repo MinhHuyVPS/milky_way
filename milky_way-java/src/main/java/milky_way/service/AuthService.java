@@ -1,11 +1,14 @@
 package milky_way.service;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
-import milky_way.dto.response.auth.AuthLoginResponse;
 import milky_way.dto.response.auth.AuthResponse;
+import milky_way.dto.response.auth.LoginResponse;
+import milky_way.dto.response.auth.RefreshResponse;
 import milky_way.dto.response.session.SessionResponse;
 import milky_way.dto.response.user.UserProfileResponse;
 import milky_way.dto.response.user.UserResponse;
@@ -21,6 +24,7 @@ import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import milky_way.utils.OtpStorage;
 import milky_way.utils.UserRole;
+import milky_way.utils.cookie.JwtAuthenticationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
@@ -105,6 +109,15 @@ public class AuthService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Autowired
+    private RedisTokenService redisTokenService;
+
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private JwtAuthenticationUtils jwtAuthenticationUtils;
+
     @Transactional
     public UserResponse registerUser(UserRequest userRequest) {
         if (userRepository.existsByEmail(userRequest.getEmail())) {
@@ -132,7 +145,7 @@ public class AuthService {
     }
 
     @Transactional
-    public Optional<AuthResponse> loginUser(UserRequestLogin userRequest) {
+    public Optional<LoginResponse> loginUser(UserRequestLogin userRequest, HttpServletResponse response) {
         Optional<User> user = Optional.ofNullable(userRepository.findByEmail(userRequest.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST)));
         if (!passwordEncoder.matches(userRequest.getPassword(), user.get().getPassword())) {
@@ -141,19 +154,22 @@ public class AuthService {
         Set<Role> roles = user.get().getRoles();
         String accessToken = jwtTokenProvider.generateToken(user.get().getEmail(), roles);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getEmail(), roles);
+        redisTokenService.saveAccessToken(user.get().getEmail(), accessToken);
+        redisTokenService.saveRefreshToken(user.get().getEmail(), refreshToken);
+        tokenService.deleteRefreshTokens(user.get());
+        tokenService.saveRefreshToken(user.get(), refreshToken);
+        jwtAuthenticationUtils.addRefreshTokenCookie(refreshToken, response);
         sessionService.invalidateAllSessions(user.get().getEmail());
         Session session = sessionService.createSession(user.get());
-        AuthResponse authResponse = new AuthResponse();
-        authResponse.setAccessToken(accessToken);
-        authResponse.setRefreshToken(refreshToken);
-        authResponse.setGoogleId(user.get().getGoogleId());
-        authResponse.setFacebookId(user.get().getFacebookId());
-        authResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
-        return Optional.of(authResponse);
+        LoginResponse loginResponse = new LoginResponse();
+        loginResponse.setAccessToken(accessToken);
+        loginResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
+        return Optional.of(loginResponse);
     }
 
     @Transactional
-    public AuthLoginResponse refreshToken(String refreshToken) {
+    public RefreshResponse refreshToken(HttpServletRequest request) {
+        String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
         if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
@@ -162,34 +178,50 @@ public class AuthService {
         if (user.isEmpty()) {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
         }
-        AuthLoginResponse authResponse = new AuthLoginResponse();
         Set<Role> roles = user.get().getRoles();
         String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-        authResponse.setAccessToken(newAccessToken);
-        authResponse.setRefreshToken(refreshToken);
+        RefreshResponse refreshResponse = new RefreshResponse();
+        refreshResponse.setAccessToken(newAccessToken);
         Optional<Session> currentSession = sessionService.getSession(email);
         if (currentSession.isPresent()) {
             Session session = currentSession.get();
-            authResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
+            refreshResponse.setSessionResponse(new SessionResponse(session.getId(), session.getCreatedAt(), session.getExpiresAt()));
         } else {
             Session newSession = sessionService.createSession(user.get());
-            authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
+            refreshResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
         }
-        if (authResponse.getSessionResponse() == null) {
+        if (refreshResponse.getSessionResponse() == null) {
             throw new AppException(ErrorCode.INVALID_RESPONSE_CONTENT);
         }
-        return authResponse;
+        return refreshResponse;
     }
 
+
     @Transactional
-    public void logout(HttpServletRequest request) {
-        String token = tokenBlacklistService.getJwtFromRequest(request);
-        if (token != null) {
-            LocalDateTime tokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(token);
-            tokenBlacklistService.blacklistToken(token, tokenExpiryDate);
-            String email = jwtTokenProvider.getEmailFromJWT(token);
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new AppException(ErrorCode.INVALID_TOKEN_FORMAT);
+        }
+        String accessToken = authorizationHeader.substring(7);
+        if (!jwtTokenProvider.validateToken(accessToken) && !jwtTokenProvider.isAccessToken(accessToken)) {
+            throw new AppException(ErrorCode.INVALID_TOKEN);
+        }
+        String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
+        LocalDateTime accessTokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(accessToken);
+        tokenBlacklistService.blacklistToken(accessToken, accessTokenExpiryDate);
+        String email = jwtTokenProvider.getEmailFromJWT(accessToken);
+        sessionService.invalidateSession(email);
+        redisTokenService.invalidateToken(accessToken, null);
+        if (refreshToken != null) {
+            LocalDateTime refreshTokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(refreshToken);
+            tokenBlacklistService.blacklistToken(refreshToken, refreshTokenExpiryDate);
+            email = jwtTokenProvider.getEmailFromJWT(refreshToken);
             sessionService.invalidateSession(email);
-        } else {
+            redisTokenService.invalidateToken(null, refreshToken);
+            jwtAuthenticationUtils.deleteRefreshTokenCookie(response);
+        }
+        else {
             throw new AppException(ErrorCode.TOKEN_NOT_FOUND);
         }
     }

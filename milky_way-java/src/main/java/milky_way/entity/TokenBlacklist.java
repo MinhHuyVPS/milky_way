@@ -20,7 +20,7 @@ public class TokenBlacklist {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, name = "token", columnDefinition = "TEXT")
     private String token;
 
     @Column(nullable = false)

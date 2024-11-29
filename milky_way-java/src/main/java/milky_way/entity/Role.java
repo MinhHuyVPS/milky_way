@@ -19,6 +19,7 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String name;
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     @ManyToMany
     private Set<Permission> permission;

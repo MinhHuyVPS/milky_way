@@ -17,5 +17,6 @@ public class Permission {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String name;
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 }

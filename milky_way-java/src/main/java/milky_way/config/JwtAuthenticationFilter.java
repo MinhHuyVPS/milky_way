@@ -3,6 +3,7 @@ package milky_way.config;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import milky_way.entity.Role;
@@ -10,6 +11,7 @@ import milky_way.service.CustomUserDetailsService;
 import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
+import milky_way.utils.cookie.JwtAuthenticationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -33,6 +35,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private CustomUserDetailsService customUserDetailsService;
+
+    @Autowired
+    private JwtAuthenticationUtils jwtAuthenticationUtils;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -77,7 +82,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        return null;
+        return jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
     }
 
 //    public boolean checkRefreshTokenValidity(String token) {

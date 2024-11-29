@@ -1,7 +1,8 @@
 package milky_way.controller;
 
-import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.auth.OtpRequest;
@@ -9,8 +10,9 @@ import milky_way.dto.request.auth.PasswordResetRequest;
 import milky_way.dto.request.auth.ResetPasswordRequest;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
-import milky_way.dto.response.auth.AuthLoginResponse;
 import milky_way.dto.response.auth.AuthResponse;
+import milky_way.dto.response.auth.LoginResponse;
+import milky_way.dto.response.auth.RefreshResponse;
 import milky_way.dto.response.user.UserProfileResponse;
 import milky_way.dto.response.user.UserResponse;
 import milky_way.exception.AppException;
@@ -21,22 +23,18 @@ import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
-import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,9 +90,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody UserRequestLogin userRequest) {
+    public ResponseEntity<?> login(@RequestBody UserRequestLogin userRequest, HttpServletResponse response) {
         try {
-            Optional<AuthResponse> authResponse = authService.loginUser(userRequest);
+            Optional<LoginResponse> authResponse = authService.loginUser(userRequest, response);
             if (authResponse.isPresent()) {
                 return ResponseEntity.ok(authResponse.get());
             } else {
@@ -102,23 +100,15 @@ public class AuthController {
                         .body(ErrorCode.AUTHENTICATION_FAILED.getMessage());
             }
         } catch (AppException e) {
-            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-                    .body(e.getErrorCode().getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(ErrorCode.UNKNOWN_ERROR.getHttpStatus())
-                    .body(ErrorCode.UNKNOWN_ERROR.getMessage());
+            throw new AppException(ErrorCode.UNKNOWN_ERROR);
         }
     }
 
     @PostMapping("/refresh")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> refreshToken(@RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<?> refreshToken(HttpServletRequest request) {
         try {
-            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-                throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
-            }
-            String refreshToken = authorizationHeader.substring(7);
-            AuthLoginResponse authResponse = authService.refreshToken(refreshToken);
+            RefreshResponse authResponse = authService.refreshToken(request);
             return ResponseEntity.ok(authResponse);
         } catch (AppException e) {
             return ResponseEntity.status(e.getErrorCode().getHttpStatus())
@@ -130,14 +120,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(HttpServletRequest request) {
-        String authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.badRequest().body("Invalid token format");
+    public ResponseEntity<String> logout(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            authService.logout(request, response);
+            return ResponseEntity.ok(Notification.LOGOUT.getValue());
+        }catch (AppException e){
+            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                    .body(e.getErrorCode().getMessage());
         }
-        String token = authorizationHeader.substring(7);
-        authService.logout(request);
-        return ResponseEntity.ok(Notification.LOGOUT.getValue());
     }
 
     @GetMapping("/profile")

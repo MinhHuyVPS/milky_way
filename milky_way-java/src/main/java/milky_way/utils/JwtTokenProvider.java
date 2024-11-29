@@ -20,16 +20,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
 public class JwtTokenProvider {
     @Value("${jwt.signerKey}")
     private String jwtSecret;
-    @Value("${jwtExpirationInMs}")
-    private long jwtExpirationInMs;
-    @Value("${jwtRefreshExpirationInMs}")
-    private long jwtRefreshExpirationInMs;
+    @Value("${jwtExpirationInSeconds}")
+    private long jwtExpirationInSeconds;
+    @Value("${jwtRefreshExpirationInSeconds}")
+    private long jwtRefreshExpirationInSeconds;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
@@ -55,7 +56,7 @@ public class JwtTokenProvider {
                 .claim("type", "access")
 //                .claim("id", id)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(new Date().getTime() + jwtExpirationInMs))
+                .setExpiration(new Date(new Date().getTime() + TimeUnit.SECONDS.toMillis(jwtExpirationInSeconds)))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
     }
@@ -79,7 +80,7 @@ public class JwtTokenProvider {
                 .claim("roles", rolesJson)
                 .claim("type", "refresh")
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(new Date().getTime() + jwtRefreshExpirationInMs))
+                .setExpiration(new Date(new Date().getTime() + TimeUnit.SECONDS.toMillis(jwtRefreshExpirationInSeconds)))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
     }

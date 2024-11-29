@@ -2,6 +2,7 @@ package milky_way.mapper;
 
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.response.auth.AuthResponse;
+import milky_way.dto.response.auth.LoginResponse;
 import milky_way.dto.response.user.UserResponse;
 import milky_way.entity.User;
 import org.mapstruct.Mapper;
@@ -14,4 +15,5 @@ public interface UserMapper {
     User toAuth(String authResponse);
     AuthResponse toAuthResponse(User user);
     UserResponse toUserResponse(User user);
+    LoginResponse toLoginResponse(User user);
 }

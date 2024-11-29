@@ -19,6 +19,7 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String name;
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     @OneToMany(mappedBy = "categories", cascade = CascadeType.ALL)
     private Set<Product> products;

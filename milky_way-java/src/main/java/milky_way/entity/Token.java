@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tokens")
+@Table(name = "tokens",
+        indexes = @Index(name = "idx_user_id", columnList = "user_id")
+)
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,6 +20,7 @@ public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
+    @Column(name = "refresh_token", columnDefinition = "TEXT")
     private String refreshToken;
     private LocalDateTime createAt;
     private LocalDateTime updatedAt;

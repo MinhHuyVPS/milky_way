@@ -27,11 +27,13 @@ public class User {
     private String firstname;
     private String lastname;
     private String phone;
+    @Column(name = "avatar", columnDefinition = "TEXT")
     private String avatar;
     private String googleId;
     private String facebookId;
     private String facebookEmail;
     private String facebookName;
+    @Column(name = "address", columnDefinition = "TEXT")
     private String address;
     private Boolean status;
     private LocalDate birthday;
