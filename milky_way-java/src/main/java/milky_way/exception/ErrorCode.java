@@ -11,6 +11,7 @@ public enum ErrorCode {
     BAD_REQUEST(400, "bad request", HttpStatus.BAD_REQUEST),
     INVALID_RESPONSE_CONTENT(1000,"loi deo alm", HttpStatus.NO_CONTENT),
     INVALID_OAUTH_CODE(400, "Access token cannot be obtained from authentication code" , HttpStatus.NOT_FOUND),
+    INVALID_ACCESS_TOKEN(405, "Failed to fetch user information with provided token",HttpStatus.NOT_FOUND),
     FACEBOOK_LINK_FOUND(400,"Facebook account linked false.", HttpStatus.FOUND),
     GOOGLE_LINK_FOUND(400, "Google account linked false.", HttpStatus.FOUND),
     USER_NOT_AUTHENTICATED(401, "User not authenticated", HttpStatus.UNAUTHORIZED),

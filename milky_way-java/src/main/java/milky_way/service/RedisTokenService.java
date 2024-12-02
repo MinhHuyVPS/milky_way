@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -28,7 +29,17 @@ public class RedisTokenService {
     }
 
     public void invalidateToken(String accessToken, String refreshToken) {
-        redisTemplate.delete("accessToken:" + accessToken);
-        redisTemplate.delete("refreshToken:" + refreshToken);
+//        redisTemplate.delete("accessToken:" + accessToken);
+//        redisTemplate.delete("refreshToken:" + refreshToken);
+
+        Set<String> accessTokenKeys = redisTemplate.keys("accessToken:*");
+        Set<String> refreshTokenKeys = redisTemplate.keys("refreshToken:*");
+
+        if (accessTokenKeys != null && !accessTokenKeys.isEmpty()) {
+            redisTemplate.delete(accessTokenKeys);
+        }
+        if (refreshTokenKeys != null && !refreshTokenKeys.isEmpty()) {
+            redisTemplate.delete(refreshTokenKeys);
+        }
     }
 }

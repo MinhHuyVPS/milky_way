@@ -160,8 +160,8 @@ public class AuthController {
     }
 
     @GetMapping("/oauth2/google")
-    public ResponseEntity<?> oauth2LoginGoogle(@RequestParam String code) {
-        AuthResponse authResponse = authService.loginWithGoogle(code);
+    public ResponseEntity<?> oauth2LoginGoogle(@RequestParam String code, HttpServletResponse response ) {
+        AuthResponse authResponse = authService.loginWithGoogle(code, response);
         return ResponseEntity.ok().body(authResponse);
     }
 

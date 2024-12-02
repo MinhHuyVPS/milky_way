@@ -245,12 +245,12 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse loginWithGoogle(String code) {
+    public AuthResponse loginWithGoogle(String code, HttpServletResponse response) {
         String accessToken = exchangeCodeForAccessTokenLogin(code);
         OAuth2User googleUser = fetchUserInfoFromGoogle(accessToken);
         String googleEmail = googleUser.getAttribute("email");
         String googleId = googleUser.getAttribute("sub");
-        return handleOAuth2GoogleLogin(googleEmail, googleId);
+        return handleOAuth2GoogleLogin(googleEmail, googleId, response);
     }
 
     private String exchangeCodeForAccessTokenLogin(String code) {
@@ -269,22 +269,30 @@ public class AuthService {
             }
             return (String) responseBody.get("access_token");
         } catch (HttpClientErrorException e) {
-            System.out.println("Error response: " + e.getResponseBodyAsString());
             throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+        }
+        catch (Exception e) {
+            throw new AppException(ErrorCode.UNKNOWN_ERROR);
         }
     }
 
-    private AuthResponse handleOAuth2GoogleLogin(String googleEmail, String googleId) {
+    private AuthResponse handleOAuth2GoogleLogin(String googleEmail, String googleId, HttpServletResponse response) {
         User user = findOrGoogleCreateUser(googleEmail, googleId);
+        sessionService.invalidateAllSessions(user.getEmail());
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
         String newAccessToken = jwtTokenProvider.generateToken(googleEmail, roles);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(googleEmail, roles);
+        redisTokenService.saveAccessToken(user.getEmail(), newAccessToken);
+        redisTokenService.saveRefreshToken(user.getEmail(), newRefreshToken);
+        tokenService.deleteRefreshTokens(user);
+        tokenService.saveRefreshToken(user, newRefreshToken);
+        jwtAuthenticationUtils.addRefreshTokenCookie(newRefreshToken, response);
         AuthResponse authResponse = new AuthResponse();
         authResponse.setAccessToken(newAccessToken);
         authResponse.setRefreshToken(newRefreshToken);
         authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
-        authResponse.setGoogleId(googleId);
+        authResponse.setGoogleId(user.getGoogleId());
         return authResponse;
     }
 
@@ -311,9 +319,10 @@ public class AuthService {
     }
 
     private User createGoogleUserWithOAuth(String googleEmail, String googleId) {
+        String encryptedGoogleId = encryptId(googleId);
         User user = new User();
         user.setGoogleEmail(googleEmail);
-        if (googleId != null) user.setGoogleId(googleId);
+        if (encryptedGoogleId != null) user.setGoogleId(encryptedGoogleId);
         userRepository.save(user);
         return user;
     }
@@ -499,15 +508,22 @@ public class AuthService {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         HttpEntity<?> entity = new HttpEntity<>(headers);
+        try {
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
 
         Map<String, Object> userAttributes = response.getBody();
+        if (userAttributes == null) {
+            throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+        }
         return new DefaultOAuth2User(
 //                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")), nếu lỗi thì đổi lại là dòng này
                 Collections.emptySet(),
                 Objects.requireNonNull(userAttributes),
                 "sub");
+        } catch (HttpClientErrorException e) {
+            throw new AppException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
     }
 
     public String generateOtpToken() {
