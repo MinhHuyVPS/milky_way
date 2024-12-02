@@ -1,6 +1,5 @@
 package milky_way.controller;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -36,14 +35,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("api/v1/auth")
 @Validated
 public class AuthController {
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     private AuthService authService;
@@ -111,11 +107,7 @@ public class AuthController {
             RefreshResponse authResponse = authService.refreshToken(request);
             return ResponseEntity.ok(authResponse);
         } catch (AppException e) {
-            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-                    .body(e.getErrorCode().getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(ErrorCode.UNKNOWN_ERROR.getHttpStatus())
-                    .body(ErrorCode.UNKNOWN_ERROR.getMessage());
+            throw new AppException(ErrorCode.UNKNOWN_ERROR);
         }
     }
 
@@ -144,24 +136,27 @@ public class AuthController {
                         .body(ErrorCode.ACCESS_DENIED.getMessage());
             }
         } catch (AppException e) {
-            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-                    .body(e.getErrorCode().getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(ErrorCode.UNKNOWN_ERROR.getHttpStatus())
-                    .body(ErrorCode.UNKNOWN_ERROR.getMessage());
+            throw new AppException(ErrorCode.ACCESS_DENIED);
         }
     }
 
     @GetMapping("/oauth2/login/authorize/google")
     public ResponseEntity<Void> redirectLoginToGoogle() {
-        String redirectUri = authorRedirectUri
-                + "?client_id=" + clientId
-                + "&redirect_uri=" + googleRedirectBaseUrl
-                + "&response_type=code"
-                + "&scope=email%20profile";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setLocation(URI.create(redirectUri));
-        return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
+        try {
+            if (clientId == null || googleRedirectBaseUrl == null || authorRedirectUri == null) {
+                throw new AppException(ErrorCode.OAUTH2_CONFIGURATION);
+            }
+            String redirectUri = authorRedirectUri
+                    + "?client_id=" + clientId
+                    + "&redirect_uri=" + googleRedirectBaseUrl
+                    + "&response_type=code"
+                    + "&scope=email%20profile";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(URI.create(redirectUri));
+            return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
+        } catch (AppException e) {
+            throw new AppException(ErrorCode.OAUTH2_REDIRECT_FAILED);
+        }
     }
 
     @GetMapping("/oauth2/google")

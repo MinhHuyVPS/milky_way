@@ -21,6 +21,8 @@ public enum ErrorCode {
     INVALID_TOKEN_FORMAT(501, "Invalid token format", HttpStatus.SERVICE_UNAVAILABLE),
     SESSION_INVALID(401, "Session is invalid or expired", HttpStatus.INTERNAL_SERVER_ERROR),
     UNKNOWN_ERROR(500, "Unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    OAUTH2_CONFIGURATION(414,"OAuth2 configuration is missing information.", HttpStatus.REQUEST_URI_TOO_LONG),
+    OAUTH2_REDIRECT_FAILED(410,"An error occurred while generating the redirect URI.", HttpStatus.BAD_REQUEST),
     USER_NOT_FOUND(404, "User Not Found", HttpStatus.NOT_FOUND),
     USER_ALREADY_EXISTS(409, "User Already Exists", HttpStatus.CONFLICT),
     USERNAME_INVALID(400, "Username is invalid", HttpStatus.BAD_REQUEST),

@@ -195,8 +195,7 @@ public class AuthService {
         }
         return refreshResponse;
     }
-
-
+    
     @Transactional
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         String authorizationHeader = request.getHeader("Authorization");
