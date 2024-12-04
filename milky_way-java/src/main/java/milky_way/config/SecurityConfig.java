@@ -26,7 +26,7 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    private final String[] PUBLIC_URLS = {"/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/oauth2/**", "/api/v1/auth/send-reset-password-email"};
+    private final String[] PUBLIC_URLS = {"/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/oauth2/**", "/api/v1/auth/send-reset-password-email", "/api/v1/auth/verify-otp", "/api/v1/auth/reset-password"};
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

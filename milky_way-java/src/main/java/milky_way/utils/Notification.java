@@ -8,6 +8,7 @@ public enum Notification {
     LOGOUT("Logout successful!"),
     RESET_PASSWORD("Reset password email sent"),
     RESET_PASSWORD_SUCCESSFUL("Password reset successfully."),
+    CHANGED_PASSWORD_SUCCESSFUL("Password changed successfully."),
     LOGIN("Login successful!");
     private final String value;
 

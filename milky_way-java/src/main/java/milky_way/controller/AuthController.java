@@ -7,17 +7,18 @@ import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.auth.OtpRequest;
 import milky_way.dto.request.auth.PasswordResetRequest;
 import milky_way.dto.request.auth.ResetPasswordRequest;
+import milky_way.dto.request.role.RoleRequest;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
-import milky_way.dto.response.auth.AuthResponse;
-import milky_way.dto.response.auth.LoginResponse;
-import milky_way.dto.response.auth.RefreshResponse;
+import milky_way.dto.response.auth.*;
 import milky_way.dto.response.user.UserProfileResponse;
 import milky_way.dto.response.user.UserResponse;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
 import milky_way.service.AuthService;
+import milky_way.service.RoleService;
 import milky_way.service.TokenBlacklistService;
+import milky_way.service.UserService;
 import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
@@ -25,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,6 +37,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
 import java.util.Optional;
+import java.util.Set;
+
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("api/v1/auth")
@@ -49,6 +53,12 @@ public class AuthController {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private RoleService roleService;
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
@@ -96,7 +106,8 @@ public class AuthController {
                         .body(ErrorCode.AUTHENTICATION_FAILED.getMessage());
             }
         } catch (AppException e) {
-            throw new AppException(ErrorCode.UNKNOWN_ERROR);
+            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                    .body(e.getErrorCode().getMessage());
         }
     }
 
@@ -107,7 +118,8 @@ public class AuthController {
             RefreshResponse authResponse = authService.refreshToken(request);
             return ResponseEntity.ok(authResponse);
         } catch (AppException e) {
-            throw new AppException(ErrorCode.UNKNOWN_ERROR);
+            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                    .body(e.getErrorCode().getMessage());
         }
     }
 
@@ -124,6 +136,7 @@ public class AuthController {
 
     @GetMapping("/profile")
     @PreAuthorize("isAuthenticated()")
+//    @PostAuthorize("returnObject.body.email == authentication.name")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
             UserProfileResponse profile = authService.getProfile(request);
@@ -136,7 +149,8 @@ public class AuthController {
                         .body(ErrorCode.ACCESS_DENIED.getMessage());
             }
         } catch (AppException e) {
-            throw new AppException(ErrorCode.ACCESS_DENIED);
+            return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                    .body(e.getErrorCode().getMessage());
         }
     }
 
@@ -160,13 +174,17 @@ public class AuthController {
     }
 
     @GetMapping("/oauth2/google")
-    public ResponseEntity<?> oauth2LoginGoogle(@RequestParam String code, HttpServletResponse response ) {
-        AuthResponse authResponse = authService.loginWithGoogle(code, response);
-        return ResponseEntity.ok().body(authResponse);
+    public ResponseEntity<?> oauth2LoginGoogle(@RequestParam String code, HttpServletResponse response) {
+        LoginGoogleResponse loginGoogleResponse = authService.loginWithGoogle(code, response);
+        return ResponseEntity.ok().body(loginGoogleResponse);
     }
 
     @GetMapping("/oauth2/login/authorize/facebook")
     public ResponseEntity<Void> oauth2LoginFacebook() {
+        try {
+            if (clientFacebookId == null || facebookRedirectBaseUrl == null || authorFacebookRedirectUri == null) {
+                throw new AppException(ErrorCode.OAUTH2_CONFIGURATION);
+            }
         String redirectUri = authorFacebookRedirectUri
                 + "?client_id=" + clientFacebookId
                 + "&redirect_uri=" + facebookRedirectBaseUrl
@@ -175,12 +193,15 @@ public class AuthController {
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(URI.create(redirectUri));
         return new ResponseEntity<>(headers, HttpStatus.SEE_OTHER);
+        } catch (AppException e) {
+            throw new AppException(ErrorCode.OAUTH2_REDIRECT_FAILED);
+        }
     }
 
     @GetMapping("/oauth2/facebook")
-    public ResponseEntity<?> oauth2LoginFacebook(@RequestParam String code) {
-        AuthResponse authResponse = authService.loginWithFacebook(code);
-        return ResponseEntity.ok().body(authResponse);
+    public ResponseEntity<?> oauth2LoginFacebook(@RequestParam String code, HttpServletResponse response) {
+        LoginFacebookResponse loginWithFacebook = authService.loginWithFacebook(code, response);
+        return ResponseEntity.ok().body(loginWithFacebook);
     }
 
     @GetMapping("/oauth2/authorize/google")
@@ -210,8 +231,8 @@ public class AuthController {
 
     @GetMapping("/oauth2/callback")
     public ResponseEntity<?> handleGoogleCallback(@RequestParam String code) {
-        AuthResponse authResponse = authService.linkGoogleAccount(code);
-        return ResponseEntity.ok(authResponse);
+        LinkGoogleResponse linkGoogleAccount = authService.linkGoogleAccount(code);
+        return ResponseEntity.ok(linkGoogleAccount);
     }
 
     @PostMapping("/send-reset-password-email")
@@ -233,9 +254,17 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<String> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody ChangePasswordRequest request) {
-        String email = userDetails.getUsername();
-        authService.changePassword(email, request.getOldPassword(), request.getNewPassword());
-        return ResponseEntity.ok("Password changed successfully.");
+    public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest changePasswordRequest, HttpServletRequest request,  HttpServletResponse response) {
+        authService.changePassword(changePasswordRequest.getOldPassword(), changePasswordRequest.getNewPassword(), request, response);
+        return ResponseEntity.ok(Notification.CHANGED_PASSWORD_SUCCESSFUL.getValue());
     }
+
+    @PutMapping("/change-roles")
+    public ResponseEntity<?> changeRoles(HttpServletRequest request,  @RequestBody RoleRequest roleRequest){
+        UserResponse response = roleService.changeRole(request, roleRequest);
+        return ResponseEntity.ok(response);
+    }
+
 }
+
+

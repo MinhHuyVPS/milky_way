@@ -66,6 +66,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return requestUri.equals("/api/v1/auth/register") ||
                 requestUri.equals("/api/v1/auth/login") ||
                 requestUri.equals("/api/v1/auth/send-reset-password-email") ||
+                requestUri.equals("/api/v1/auth/verify-otp") ||
+                requestUri.equals("/api/v1/auth/reset-password") ||
                 pathMatcher.match("/api/v1/auth/oauth2/**", requestUri);
     }
 

@@ -1,7 +1,8 @@
 package milky_way.mapper;
 
+import milky_way.dto.request.role.RoleRequest;
 import milky_way.dto.request.user.UserRequest;
-import milky_way.dto.response.auth.AuthResponse;
+import milky_way.dto.response.auth.LinkGoogleResponse;
 import milky_way.dto.response.auth.LoginResponse;
 import milky_way.dto.response.user.UserResponse;
 import milky_way.entity.User;
@@ -13,7 +14,7 @@ public interface UserMapper {
     UserMapper  INSTANCE = Mappers.getMapper(UserMapper.class);
     User toUser(UserRequest userRequest);
     User toAuth(String authResponse);
-    AuthResponse toAuthResponse(User user);
+    LinkGoogleResponse toAuthResponse(User user);
     UserResponse toUserResponse(User user);
     LoginResponse toLoginResponse(User user);
 }

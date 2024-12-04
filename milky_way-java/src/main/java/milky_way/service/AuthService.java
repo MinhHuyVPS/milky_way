@@ -6,9 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
-import milky_way.dto.response.auth.AuthResponse;
-import milky_way.dto.response.auth.LoginResponse;
-import milky_way.dto.response.auth.RefreshResponse;
+import milky_way.dto.response.auth.*;
 import milky_way.dto.response.session.SessionResponse;
 import milky_way.dto.response.user.UserProfileResponse;
 import milky_way.dto.response.user.UserResponse;
@@ -152,8 +150,8 @@ public class AuthService {
             throw new AppException(ErrorCode.PASSWORD_INCORRECT);
         }
         Set<Role> roles = user.get().getRoles();
-        String accessToken = jwtTokenProvider.generateToken(user.get().getEmail(), roles);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getEmail(), roles);
+        String accessToken = jwtTokenProvider.generateToken(user.get().getId() ,user.get().getEmail(), roles);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getId() ,user.get().getEmail(), roles);
         redisTokenService.saveAccessToken(user.get().getEmail(), accessToken);
         redisTokenService.saveRefreshToken(user.get().getEmail(), refreshToken);
         tokenService.deleteRefreshTokens(user.get());
@@ -174,12 +172,13 @@ public class AuthService {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(refreshToken);
-        Optional<User> user = userRepository.findByAnyEmail(email);
+        String id = jwtTokenProvider.getIdFromJWT(refreshToken);
+        Optional<User> user = userRepository.findByEmailAndId(email, id);
         if (user.isEmpty()) {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
         }
         Set<Role> roles = user.get().getRoles();
-        String newAccessToken = jwtTokenProvider.generateToken(email, roles);
+        String newAccessToken = jwtTokenProvider.generateToken(id ,email, roles);
         RefreshResponse refreshResponse = new RefreshResponse();
         refreshResponse.setAccessToken(newAccessToken);
         Optional<Session> currentSession = sessionService.getSession(email);
@@ -195,34 +194,15 @@ public class AuthService {
         }
         return refreshResponse;
     }
-    
+
     @Transactional
     public void logout(HttpServletRequest request, HttpServletResponse response) {
-        String authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new AppException(ErrorCode.INVALID_TOKEN_FORMAT);
-        }
-        String accessToken = authorizationHeader.substring(7);
-        if (!jwtTokenProvider.validateToken(accessToken) && !jwtTokenProvider.isAccessToken(accessToken)) {
-            throw new AppException(ErrorCode.INVALID_TOKEN);
-        }
-        String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
-        LocalDateTime accessTokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(accessToken);
-        tokenBlacklistService.blacklistToken(accessToken, accessTokenExpiryDate);
+        String accessToken = extractAndValidateAccessToken(request);
         String email = jwtTokenProvider.getEmailFromJWT(accessToken);
-        sessionService.invalidateSession(email);
-        redisTokenService.invalidateToken(accessToken, null);
-        if (refreshToken != null) {
-            LocalDateTime refreshTokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(refreshToken);
-            tokenBlacklistService.blacklistToken(refreshToken, refreshTokenExpiryDate);
-            email = jwtTokenProvider.getEmailFromJWT(refreshToken);
-            sessionService.invalidateSession(email);
-            redisTokenService.invalidateToken(null, refreshToken);
-            jwtAuthenticationUtils.deleteRefreshTokenCookie(response);
-        }
-        else {
-            throw new AppException(ErrorCode.TOKEN_NOT_FOUND);
-        }
+        invalidateAccessTokenAndSession(accessToken, email);
+
+        String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
+        processRefreshToken(refreshToken, response);
     }
 
     @Transactional
@@ -232,10 +212,11 @@ public class AuthService {
             throw new AppException(ErrorCode.INVALID_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(token);
+        String id = jwtTokenProvider.getIdFromJWT(token);
         if (!sessionService.isSessionValid(email)) {
             throw new AppException(ErrorCode.SESSION_INVALID);
         }
-        User user = userRepository.findByAnyEmail(email)
+        User user = userRepository.findByEmailAndId(email, id)
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
         String userEmail = getUserEmail(user, email);
         if (!userEmail.equals(email)) {
@@ -245,7 +226,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse loginWithGoogle(String code, HttpServletResponse response) {
+    public LoginGoogleResponse loginWithGoogle(String code, HttpServletResponse response) {
         String accessToken = exchangeCodeForAccessTokenLogin(code);
         OAuth2User googleUser = fetchUserInfoFromGoogle(accessToken);
         String googleEmail = googleUser.getAttribute("email");
@@ -276,24 +257,23 @@ public class AuthService {
         }
     }
 
-    private AuthResponse handleOAuth2GoogleLogin(String googleEmail, String googleId, HttpServletResponse response) {
+    private LoginGoogleResponse handleOAuth2GoogleLogin(String googleEmail, String googleId, HttpServletResponse response) {
         User user = findOrGoogleCreateUser(googleEmail, googleId);
         sessionService.invalidateAllSessions(user.getEmail());
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
-        String newAccessToken = jwtTokenProvider.generateToken(googleEmail, roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(googleEmail, roles);
+        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), googleEmail, roles);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(),googleEmail, roles);
         redisTokenService.saveAccessToken(user.getEmail(), newAccessToken);
         redisTokenService.saveRefreshToken(user.getEmail(), newRefreshToken);
         tokenService.deleteRefreshTokens(user);
         tokenService.saveRefreshToken(user, newRefreshToken);
         jwtAuthenticationUtils.addRefreshTokenCookie(newRefreshToken, response);
-        AuthResponse authResponse = new AuthResponse();
-        authResponse.setAccessToken(newAccessToken);
-        authResponse.setRefreshToken(newRefreshToken);
-        authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
-        authResponse.setGoogleId(user.getGoogleId());
-        return authResponse;
+        LoginGoogleResponse loginGoogleResponse = new LoginGoogleResponse();
+        loginGoogleResponse.setAccessToken(newAccessToken);
+        loginGoogleResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
+        loginGoogleResponse.setGoogleId(user.getGoogleId());
+        return loginGoogleResponse;
     }
 
     private User findOrGoogleCreateUser(String googleEmail, String googleId) {
@@ -323,8 +303,39 @@ public class AuthService {
         User user = new User();
         user.setGoogleEmail(googleEmail);
         if (encryptedGoogleId != null) user.setGoogleId(encryptedGoogleId);
+        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
+                .orElseGet(() -> roleRepository.save(
+                        Role.builder()
+                                .name(UserRole.USER.getValue())
+                                .description(Notification.REGISTER.getValue())
+                                .build()
+                ));
+        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         userRepository.save(user);
         return user;
+    }
+
+    private OAuth2User fetchUserInfoFromGoogle(String accessToken) {
+        String userInfoEndpointUri = userInfoUri;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
+
+            Map<String, Object> userAttributes = response.getBody();
+            if (userAttributes == null) {
+                throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+            }
+            return new DefaultOAuth2User(
+//                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")), nếu lỗi thì đổi lại là dòng này
+                    Collections.emptySet(),
+                    Objects.requireNonNull(userAttributes),
+                    "sub");
+        } catch (HttpClientErrorException e) {
+            throw new AppException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
     }
 
     private String encryptId(String googleId) {
@@ -332,7 +343,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse loginWithFacebook(String code) {
+    public LoginFacebookResponse loginWithFacebook(String code, HttpServletResponse response) {
         String accessToken = exchangeCodeForAccessTokenLoginFacebook(code);
         OAuth2User facebookUser = fetchUserInfoFromFacebook(accessToken);
         String facebookEmail = facebookUser.getAttribute("email");
@@ -346,7 +357,7 @@ public class AuthService {
                 avatar = (String) data.get("url");
             }
         }
-        return handleOAuth2FaceBookLogin(facebookEmail, facebookId, facebookName, avatar);
+        return handleOAuth2FaceBookLogin(facebookEmail, facebookId, facebookName, avatar, response);
     }
 
     private String exchangeCodeForAccessTokenLoginFacebook(String code) {
@@ -365,8 +376,9 @@ public class AuthService {
             }
             return (String) responseBody.get("access_token");
         } catch (HttpClientErrorException e) {
-            System.out.println("Error response: " + e.getResponseBodyAsString());
             throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
+        }catch (Exception e) {
+            throw new AppException(ErrorCode.UNKNOWN_ERROR);
         }
     }
 
@@ -396,19 +408,23 @@ public class AuthService {
         }
     }
 
-
-    private AuthResponse handleOAuth2FaceBookLogin(String email, String facebookId, String facebookName, String avatar) {
+    private LoginFacebookResponse handleOAuth2FaceBookLogin(String email, String facebookId, String facebookName, String avatar, HttpServletResponse response) {
         User user = findOrFaceBookCreateUser(email, facebookId, facebookName, avatar);
+        sessionService.invalidateAllSessions(user.getEmail());
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
-        String newAccessToken = jwtTokenProvider.generateToken(email, roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(email, roles);
-        AuthResponse authResponse = new AuthResponse();
-        authResponse.setAccessToken(newAccessToken);
-        authResponse.setRefreshToken(newRefreshToken);
-        authResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
-        authResponse.setFacebookId(facebookId);
-        return authResponse;
+        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), email, roles);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(),email, roles);
+        redisTokenService.saveAccessToken(user.getEmail(), newAccessToken);
+        redisTokenService.saveRefreshToken(user.getEmail(), newRefreshToken);
+        tokenService.deleteRefreshTokens(user);
+        tokenService.saveRefreshToken(user, newRefreshToken);
+        jwtAuthenticationUtils.addRefreshTokenCookie(newRefreshToken, response);
+        LoginFacebookResponse loginFacebookResponse = new LoginFacebookResponse();
+        loginFacebookResponse.setAccessToken(newAccessToken);
+        loginFacebookResponse.setSessionResponse(new SessionResponse(newSession.getId(), newSession.getCreatedAt(), newSession.getExpiresAt()));
+        loginFacebookResponse.setFacebookId(user.getFacebookId());
+        return loginFacebookResponse;
     }
 
     private User findOrFaceBookCreateUser(String email, String facebookId, String facebookName, String avatar) {
@@ -437,9 +453,9 @@ public class AuthService {
             throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
         }
         // sau khi sửa thì cần check lại xem thêm role có đúng không
-//        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
+//        RoleService userRole = roleRepository.findByName(UserRole.USER.getValue())
 //                .orElseGet(() -> {
-//                    Role newRole = Role.builder()
+//                    RoleService newRole = RoleService.builder()
 //                            .name(UserRole.USER.getValue())
 //                            .description(Notification.REGISTER.getValue())
 //                            .build();
@@ -450,34 +466,36 @@ public class AuthService {
     }
 
     private User createFaceBookUserWithOAuth(String email, String facebookId, String facebookName, String avatar) {
+        String encryptedFacebookId = encryptId(facebookId);
         User user = new User();
         user.setEmail(email);
         user.setFacebookEmail(email);
         user.setUsername(facebookName);
         user.setAvatar(avatar);
         // sau khi sửa thì cần check lại xem thêm role có đúng không
-//        if (facebookId != null) user.setFacebookId(facebookId);
-//        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
-//                .orElseGet(() -> roleRepository.save(
-//                        Role.builder()
-//                                .name(UserRole.USER.getValue())
-//                                .description(Notification.REGISTER.getValue())
-//                                .build()
-//                ));
-//        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
+        if (facebookId != null) user.setFacebookId(encryptedFacebookId);
+        Role userRole = roleRepository.findByName(UserRole.USER.getValue())
+                .orElseGet(() -> roleRepository.save(
+                        Role.builder()
+                                .name(UserRole.USER.getValue())
+                                .description(Notification.REGISTER.getValue())
+                                .build()
+                ));
+        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         return userRepository.save(user);
     }
 
     @Transactional
-    public AuthResponse linkGoogleAccount(String code) {
+    public LinkGoogleResponse linkGoogleAccount(String code) {
         String accessToken = exchangeCodeForAccessToken(code);
         OAuth2User googleUser = fetchUserInfoFromGoogle(accessToken);
         String googleEmail = googleUser.getAttribute("email");
         String googleId = googleUser.getAttribute("sub");
+        String encryptedGoogleId = encryptId(googleId);
         User existingUser = userRepository.findByEmail(googleEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
         existingUser.setGoogleEmail(googleEmail);
-        existingUser.setGoogleId(encryptId(googleId));
+        existingUser.setGoogleId(encryptId(encryptedGoogleId));
         User updatedUser = userRepository.save(existingUser);
         return userMapper.toAuthResponse(updatedUser);
     }
@@ -503,35 +521,13 @@ public class AuthService {
         }
     }
 
-    private OAuth2User fetchUserInfoFromGoogle(String accessToken) {
-        String userInfoEndpointUri = userInfoUri;
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        HttpEntity<?> entity = new HttpEntity<>(headers);
-        try {
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                userInfoEndpointUri, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
-
-        Map<String, Object> userAttributes = response.getBody();
-        if (userAttributes == null) {
-            throw new AppException(ErrorCode.INVALID_OAUTH_CODE);
-        }
-        return new DefaultOAuth2User(
-//                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")), nếu lỗi thì đổi lại là dòng này
-                Collections.emptySet(),
-                Objects.requireNonNull(userAttributes),
-                "sub");
-        } catch (HttpClientErrorException e) {
-            throw new AppException(ErrorCode.INVALID_ACCESS_TOKEN);
-        }
-    }
-
-    public String generateOtpToken() {
+    private String generateOtpToken() {
         SecureRandom random = new SecureRandom();
         int otp = 100000 + random.nextInt(900000);
         return String.valueOf(otp);
     }
 
+    @Transactional
     public void sendResetPasswordEmail(String email){
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -544,15 +540,16 @@ public class AuthService {
         mailSender.send(mailMessage);
     }
 
+    @Transactional
     public String  verifyOtp(String otp) {
         String email = OtpStorage.getEmailByOtp(otp);
         if (email == null) {
             throw new AppException(ErrorCode.INVALID_OTP);
         }
-        OtpStorage.removeOtp(email);
         return otp;
     }
 
+    @Transactional
     public void resetPassword(String otp, String newPassword) {
         String email = OtpStorage.getEmailByOtp(otp);
         if (email == null) {
@@ -561,17 +558,29 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.setPassword(passwordEncoder.encode(newPassword));
+        OtpStorage.removeOtp(email);
         userRepository.save(user);
     }
 
-    public void changePassword(String email, String oldPassword, String newPassword) {
+    @Transactional
+    public void changePassword(String oldPassword, String newPassword, HttpServletRequest request, HttpServletResponse response) {
+        String accessToken = extractAndValidateAccessToken(request);
+        String email = jwtTokenProvider.getEmailFromJWT(accessToken);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new AppException(ErrorCode.INVALID_OLD_PASSWORD);
         }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+
+        invalidateAccessTokenAndSession(accessToken, email);
+
+        String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
+        processRefreshToken(refreshToken, response);
     }
 
     private String getUserEmail(User user, String requestedEmail) {
@@ -585,4 +594,38 @@ public class AuthService {
             throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
         }
     }
+
+    private void validateAccessToken(String accessToken) {
+        if (!jwtTokenProvider.validateToken(accessToken) || !jwtTokenProvider.isAccessToken(accessToken)) {
+            throw new AppException(ErrorCode.INVALID_TOKEN);
+        }
+    }
+
+    private String extractAndValidateAccessToken(HttpServletRequest request) {
+        String accessToken = tokenService.extractAccessToken(request);
+        validateAccessToken(accessToken);
+        return accessToken;
+    }
+
+    private void processRefreshToken(String refreshToken, HttpServletResponse response) {
+        if (refreshToken != null) {
+            LocalDateTime refreshTokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(refreshToken);
+            tokenBlacklistService.blacklistToken(refreshToken, refreshTokenExpiryDate);
+            String email = jwtTokenProvider.getEmailFromJWT(refreshToken);
+            sessionService.invalidateSession(email);
+            redisTokenService.invalidateToken(null, refreshToken);
+            jwtAuthenticationUtils.deleteRefreshTokenCookie(response);
+        } else {
+            throw new AppException(ErrorCode.TOKEN_NOT_FOUND);
+        }
+    }
+
+    private void invalidateAccessTokenAndSession(String accessToken, String email) {
+        LocalDateTime accessTokenExpiryDate = jwtTokenProvider.getExpiryDateFromToken(accessToken);
+        tokenBlacklistService.blacklistToken(accessToken, accessTokenExpiryDate);
+        sessionService.invalidateSession(email);
+        redisTokenService.invalidateToken(accessToken, null);
+    }
+
+
 }

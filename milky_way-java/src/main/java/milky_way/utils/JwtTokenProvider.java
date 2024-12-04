@@ -36,7 +36,7 @@ public class JwtTokenProvider {
     @Autowired
     private TokenBlacklistRepository tokenBlacklistRepository;
 
-    public String generateToken(String email, Set<Role> roles) {
+    public String generateToken(String id ,String email, Set<Role> roles) {
         String rolesJson;
         try {
             if (roles == null || roles.isEmpty()) {
@@ -54,14 +54,14 @@ public class JwtTokenProvider {
                 .setSubject(email)
                 .claim("roles", rolesJson)
                 .claim("type", "access")
-//                .claim("id", id)
+                .claim("id", id)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + TimeUnit.SECONDS.toMillis(jwtExpirationInSeconds)))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
     }
 
-    public String generateRefreshToken(String email, Set<Role> roles) {
+    public String generateRefreshToken(String id ,String email, Set<Role> roles) {
         String rolesJson;
         try {
             if (roles == null || roles.isEmpty()) {
@@ -79,6 +79,7 @@ public class JwtTokenProvider {
                 .setSubject(email)
                 .claim("roles", rolesJson)
                 .claim("type", "refresh")
+                .claim("id", id)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + TimeUnit.SECONDS.toMillis(jwtRefreshExpirationInSeconds)))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
@@ -180,5 +181,9 @@ public class JwtTokenProvider {
     public LocalDateTime getExpiryDateFromToken(String token) {
         Date expiration = getClaimsFromJWT(token).getExpiration();
         return expiration.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+    }
+
+    public String getIdFromJWT(String token) {
+        return getClaimsFromJWT(token).get("id", String.class);
     }
 }

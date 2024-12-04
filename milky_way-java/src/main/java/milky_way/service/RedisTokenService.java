@@ -31,10 +31,8 @@ public class RedisTokenService {
     public void invalidateToken(String accessToken, String refreshToken) {
 //        redisTemplate.delete("accessToken:" + accessToken);
 //        redisTemplate.delete("refreshToken:" + refreshToken);
-
         Set<String> accessTokenKeys = redisTemplate.keys("accessToken:*");
         Set<String> refreshTokenKeys = redisTemplate.keys("refreshToken:*");
-
         if (accessTokenKeys != null && !accessTokenKeys.isEmpty()) {
             redisTemplate.delete(accessTokenKeys);
         }
