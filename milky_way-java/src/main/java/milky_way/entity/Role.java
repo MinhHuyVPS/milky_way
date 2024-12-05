@@ -18,12 +18,17 @@ public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
+    @Column(nullable = false, unique = true)
     private String name;
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
-    @ManyToMany
-    private Set<Permission> permission;
-
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "roles_permissions",
+            joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "permission_id")
+    )
+    private Set<Permission> permissions;
     public Role(String roleName) {
         this.name = roleName;
     }

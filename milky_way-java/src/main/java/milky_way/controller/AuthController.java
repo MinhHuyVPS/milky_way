@@ -260,6 +260,7 @@ public class AuthController {
     }
 
     @PutMapping("/change-roles")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> changeRoles(HttpServletRequest request,  @RequestBody RoleRequest roleRequest){
         UserResponse response = roleService.changeRole(request, roleRequest);
         return ResponseEntity.ok(response);

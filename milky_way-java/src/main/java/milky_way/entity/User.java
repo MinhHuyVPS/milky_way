@@ -21,8 +21,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String username;
+    @Column(nullable = false, unique = true)
     private String email;
-    private String googleEmail ;
+    private String googleEmail;
+    @Column(nullable = false)
     private String password;
     private String firstname;
     private String lastname;
@@ -38,15 +40,20 @@ public class User {
     private Boolean status;
     private LocalDate birthday;
     private LocalDateTime deleteAt;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
-        @ManyToMany(fetch = FetchType.EAGER)
-        @JoinTable(
-                name = "users_roles",
-                joinColumns = @JoinColumn(name = "user_id"),
-                inverseJoinColumns = @JoinColumn(name = "role_id")
-        )
-        private Set<Role> roles;
+    @Column(updatable = false)
+    private LocalDateTime createAt = LocalDateTime.now();
+    private LocalDateTime updateAt = LocalDateTime.now();
+    @PreUpdate
+    protected void onUpdate() {
+        updateAt = LocalDateTime.now();
+    }
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
     private Set<Order> orders;
     @ManyToMany
@@ -64,7 +71,9 @@ public class User {
     private Set<Session> sessions;
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
+                .flatMap(role -> role.getPermissions().stream())
+                .map(permission -> new SimpleGrantedAuthority(permission.getName()))
+                .distinct()
                 .toList();
     }
     @OneToMany(mappedBy = "users")

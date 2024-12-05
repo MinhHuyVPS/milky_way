@@ -47,7 +47,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        logger.info("Processing request: {}", request.getRequestURI());
         String token = getJwtFromRequest(request);
         if (token != null && jwtTokenProvider.validateToken(token)) {
             Claims claims = jwtTokenProvider.getClaimsFromJWT(token);
@@ -86,15 +85,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
     }
-
-//    public boolean checkRefreshTokenValidity(String token) {
-//        try {
-//            var claims = jwtTokenProvider.getClaimsFromJWT(token);
-//            Date expirationDate = claims.getExpiration();
-//            return expirationDate != null && expirationDate.after(new Date());
-//        } catch (Exception e) {
-//            return false;
-//        }
-//    }
 
 }

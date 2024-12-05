@@ -36,6 +36,7 @@ public enum ErrorCode {
     ACCESS_DENIED(403, "Access Denied", HttpStatus.FORBIDDEN),
     PASSWORD_INCORRECT(400, "Password is incorrect", HttpStatus.BAD_REQUEST),
     EMAIL_EXIST(409, "Email has been used!", HttpStatus.CONFLICT),
+    PERMISSION__EXIST(413, "Permission already exists with name", HttpStatus.CONFLICT),
     INVALID_REFRESH_TOKEN(403, "Invalid refresh token", HttpStatus.FORBIDDEN),
     LOGOUT_BAD_REQUEST(404, "Logout bad request" , HttpStatus.BAD_REQUEST),
     EMAIL_NOT_EXIST(404, "Email not exist", HttpStatus.NOT_FOUND);

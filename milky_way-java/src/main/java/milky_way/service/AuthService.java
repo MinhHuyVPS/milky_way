@@ -168,7 +168,7 @@ public class AuthService {
     @Transactional
     public RefreshResponse refreshToken(HttpServletRequest request) {
         String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
-        if (!jwtTokenProvider.validateToken(refreshToken) || jwtTokenProvider.isTokenExpired(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
+        if (!jwtTokenProvider.validateToken(refreshToken) && jwtTokenProvider.isTokenExpired(refreshToken) && !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(refreshToken);
@@ -452,16 +452,6 @@ public class AuthService {
         else if (user.getFacebookId() != null &&  !passwordEncoder.matches(facebookId, user.getFacebookId())) {
             throw new AppException(ErrorCode.LINKED_ACCOUNT_MISMATCH);
         }
-        // sau khi sửa thì cần check lại xem thêm role có đúng không
-//        RoleService userRole = roleRepository.findByName(UserRole.USER.getValue())
-//                .orElseGet(() -> {
-//                    RoleService newRole = RoleService.builder()
-//                            .name(UserRole.USER.getValue())
-//                            .description(Notification.REGISTER.getValue())
-//                            .build();
-//                    return roleRepository.save(newRole);
-//                });
-//        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         userRepository.save(user);
     }
 
@@ -472,7 +462,6 @@ public class AuthService {
         user.setFacebookEmail(email);
         user.setUsername(facebookName);
         user.setAvatar(avatar);
-        // sau khi sửa thì cần check lại xem thêm role có đúng không
         if (facebookId != null) user.setFacebookId(encryptedFacebookId);
         Role userRole = roleRepository.findByName(UserRole.USER.getValue())
                 .orElseGet(() -> roleRepository.save(
