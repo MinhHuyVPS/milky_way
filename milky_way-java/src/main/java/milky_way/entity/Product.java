@@ -24,7 +24,7 @@ public class Product {
     private String description;
     private Long price;
     private Long stock;
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
     private LocalDateTime updateAt;
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)

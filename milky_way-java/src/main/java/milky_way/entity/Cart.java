@@ -20,7 +20,7 @@ public class Cart {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private Long totalPrice;
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
     private LocalDateTime updateAt;
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)

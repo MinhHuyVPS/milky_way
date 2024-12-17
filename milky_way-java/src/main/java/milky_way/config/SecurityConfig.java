@@ -1,5 +1,6 @@
 package milky_way.config;
-
+import milky_way.repository.RoleRepository;
+import milky_way.repository.UserRepository;
 import milky_way.utils.CustomAuthenticationProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +27,12 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;

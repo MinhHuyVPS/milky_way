@@ -24,7 +24,7 @@ public class Order {
     @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;
     private String paymentStatus;
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
     private LocalDateTime updateAt;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

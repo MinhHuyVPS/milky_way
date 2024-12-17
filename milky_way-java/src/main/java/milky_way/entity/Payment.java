@@ -20,7 +20,7 @@ public class Payment {
     private String id;
     private String paymentMethod;
     private String paymentStatus;
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
     @ManyToOne
     @JoinColumn(name = "order_id",nullable = false)
     private Order orders;

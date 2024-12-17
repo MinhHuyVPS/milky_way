@@ -7,5 +7,6 @@ import java.util.Set;
 
 @Data
 public class RoleRequest {
+    private String id;
     private Set<String> name;
 }

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    INVALID_REQUEST(404, "Target user ID cannot be null or empty", HttpStatus.NOT_FOUND),
     INVALID_OLD_PASSWORD(412, "Invalid old password", HttpStatus.BAD_REQUEST),
     INVALID_OTP(411, "invalid otp",  HttpStatus.NOT_FOUND),
     BAD_REQUEST(400, "bad request", HttpStatus.BAD_REQUEST),
@@ -37,6 +38,7 @@ public enum ErrorCode {
     PASSWORD_INCORRECT(400, "Password is incorrect", HttpStatus.BAD_REQUEST),
     EMAIL_EXIST(409, "Email has been used!", HttpStatus.CONFLICT),
     PERMISSION__EXIST(413, "Permission already exists with name", HttpStatus.CONFLICT),
+    PERMISSION_NOT_FOUND(416, "Permissions not found", HttpStatus.NOT_FOUND),
     INVALID_REFRESH_TOKEN(403, "Invalid refresh token", HttpStatus.FORBIDDEN),
     LOGOUT_BAD_REQUEST(404, "Logout bad request" , HttpStatus.BAD_REQUEST),
     EMAIL_NOT_EXIST(404, "Email not exist", HttpStatus.NOT_FOUND);

@@ -7,18 +7,17 @@ import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.auth.OtpRequest;
 import milky_way.dto.request.auth.PasswordResetRequest;
 import milky_way.dto.request.auth.ResetPasswordRequest;
+import milky_way.dto.request.permission.PermissionRequest;
 import milky_way.dto.request.role.RoleRequest;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
 import milky_way.dto.response.auth.*;
+import milky_way.dto.response.role.RoleResponse;
 import milky_way.dto.response.user.UserProfileResponse;
 import milky_way.dto.response.user.UserResponse;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
-import milky_way.service.AuthService;
-import milky_way.service.RoleService;
-import milky_way.service.TokenBlacklistService;
-import milky_way.service.UserService;
+import milky_way.service.*;
 import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
@@ -59,6 +58,9 @@ public class AuthController {
 
     @Autowired
     private RoleService roleService;
+
+    @Autowired
+    private PermissionService permissionService;
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
@@ -259,13 +261,33 @@ public class AuthController {
         return ResponseEntity.ok(Notification.CHANGED_PASSWORD_SUCCESSFUL.getValue());
     }
 
-    @PutMapping("/change-roles")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> changeRoles(HttpServletRequest request,  @RequestBody RoleRequest roleRequest){
-        UserResponse response = roleService.changeRole(request, roleRequest);
+    @PostMapping("/add-roles")
+    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_WRITE')")
+    public ResponseEntity<?> addRoles(@RequestBody RoleRequest roleRequest){
+        UserResponse response = roleService.addRolesToUser(roleRequest);
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/update-roles")
+    @PreAuthorize("hasRole('ADMIN') and hasAnyAuthority('ADMIN_WRITE', 'ADMIN_DELETE')")
+    public ResponseEntity<?> updateRoles(@RequestBody RoleRequest roleRequest){
+        UserResponse response = roleService.updateRolesForUser(roleRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/add-permissions")
+    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_WRITE')")
+    public ResponseEntity<?> addPermissions(@RequestBody PermissionRequest permissionRequest){
+        RoleResponse response = permissionService.addPermissionsToRole(permissionRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/add-permissions")
+    @PreAuthorize("hasRole('ADMIN') and hasAnyAuthority('ADMIN_WRITE', 'ADMIN_DELETE')")
+    public ResponseEntity<?> updatePermissions(@RequestBody PermissionRequest permissionRequest){
+        RoleResponse response = permissionService.updatePermissionsForRole(permissionRequest);
+        return ResponseEntity.ok(response);
+    }
 }
 
 

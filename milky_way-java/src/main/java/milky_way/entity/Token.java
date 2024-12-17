@@ -22,7 +22,7 @@ public class Token {
     private String id;
     @Column(name = "refresh_token", columnDefinition = "TEXT")
     private String refreshToken;
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
     private LocalDateTime updatedAt;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

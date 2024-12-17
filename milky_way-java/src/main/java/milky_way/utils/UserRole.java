@@ -1,5 +1,8 @@
 package milky_way.utils;
 
+import lombok.Getter;
+
+@Getter
 public enum UserRole {
     ADMIN("ADMIN"),
     SELLER("SELLER"),
@@ -11,7 +14,4 @@ public enum UserRole {
         this.value = value;
     }
 
-    public String getValue(){
-        return value;
-    }
 }

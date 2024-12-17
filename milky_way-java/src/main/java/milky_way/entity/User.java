@@ -42,7 +42,7 @@ public class User {
     private LocalDateTime deleteAt;
     @Column(updatable = false)
     private LocalDateTime createAt = LocalDateTime.now();
-    private LocalDateTime updateAt = LocalDateTime.now();
+    private LocalDateTime updateAt;
     @PreUpdate
     protected void onUpdate() {
         updateAt = LocalDateTime.now();

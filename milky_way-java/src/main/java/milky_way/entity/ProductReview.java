@@ -22,7 +22,7 @@ public class ProductReview {
     private Integer rating;
     @Column(name = "review", columnDefinition = "TEXT")
     private String review;
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
     private Product products;

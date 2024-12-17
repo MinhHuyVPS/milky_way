@@ -18,7 +18,7 @@ public class Session {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime expiresAt;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
