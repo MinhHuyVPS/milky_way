@@ -2,13 +2,14 @@ package milky_way.service;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
-import milky_way.dto.request.permission.PermissionRequest;
+import milky_way.dto.request.role.RoleRequestPermission;
+import milky_way.dto.response.permission.PermissionResponse;
 import milky_way.dto.response.role.RoleResponse;
 import milky_way.entity.Permission;
 import milky_way.entity.Role;
-import milky_way.entity.User;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
+import milky_way.mapper.PermissionMapper;
 import milky_way.mapper.RoleMapper;
 import milky_way.repository.PermissionRepository;
 import milky_way.repository.RoleRepository;
@@ -31,6 +32,9 @@ public class PermissionService {
 
     @Autowired
     private RoleMapper roleMapper;
+
+    @Autowired
+    private PermissionMapper permissionMapper;
 
     @PostConstruct
     public void initPermissions() {
@@ -61,20 +65,19 @@ public class PermissionService {
             }
             roleRepository.save(adminRole);
         } catch (Exception e) {
-//            System.err.println("Lỗi khi khởi tạo quyền và role: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
 
     @Transactional
-    public RoleResponse addPermissionsToRole(PermissionRequest permissionRequest){
-        if (permissionRequest.getId() == null || permissionRequest.getId().isEmpty()) {
+    public RoleResponse addPermissionsToRole(RoleRequestPermission roleRequestPermission){
+        if (roleRequestPermission.getId() == null || roleRequestPermission.getId().isEmpty()) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
-        Role role = roleRepository.findById(permissionRequest.getId())
+        Role role = roleRepository.findById(roleRequestPermission.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
-        Set<Permission> permissions = permissionRepository.findByNameIn(permissionRequest.getName());
+        Set<Permission> permissions = permissionRepository.findByNameIn(roleRequestPermission.getName());
         if (permissions.isEmpty()){
             throw new AppException(ErrorCode.PERMISSION_NOT_FOUND);
         }
@@ -84,13 +87,13 @@ public class PermissionService {
     }
 
     @Transactional
-    public RoleResponse updatePermissionsForRole(PermissionRequest permissionRequest) {
-        if (permissionRequest.getId() == null || permissionRequest.getId().isEmpty()) {
+    public RoleResponse updatePermissionsForRole(RoleRequestPermission roleRequestPermission) {
+        if (roleRequestPermission.getId() == null || roleRequestPermission.getId().isEmpty()) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
-        Role role = roleRepository.findById(permissionRequest.getId())
+        Role role = roleRepository.findById(roleRequestPermission.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
-        Set<Permission> permissions = permissionRepository.findByNameIn(permissionRequest.getName());
+        Set<Permission> permissions = permissionRepository.findByNameIn(roleRequestPermission.getName());
         if(permissions.isEmpty()){
             throw new AppException(ErrorCode.PERMISSION_NOT_FOUND);
         }
@@ -99,4 +102,16 @@ public class PermissionService {
         roleRepository.save(role);
         return roleMapper.toRoleResponse(role);
     }
+
+    public Set<PermissionResponse> findPermissionsByRolesIn(Set<String> roleIds) {
+        Set<Object[]> results = roleRepository.findPermissionsByRolesIn(roleIds);
+        Set<Permission> permissions = new HashSet<>();
+        for (Object[] result : results) {
+            String id = (String) result[0];
+            String name = (String) result[1];
+            permissions.add(new Permission(id, name));
+        }
+        return permissionMapper.toPermissionSet(permissions);
+    }
+
 }

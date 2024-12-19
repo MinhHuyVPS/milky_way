@@ -7,8 +7,8 @@ import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.auth.OtpRequest;
 import milky_way.dto.request.auth.PasswordResetRequest;
 import milky_way.dto.request.auth.ResetPasswordRequest;
-import milky_way.dto.request.permission.PermissionRequest;
-import milky_way.dto.request.role.RoleRequest;
+import milky_way.dto.request.role.RoleRequestPermission;
+import milky_way.dto.request.user.UserRequestRole;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
 import milky_way.dto.response.auth.*;
@@ -18,14 +18,12 @@ import milky_way.dto.response.user.UserResponse;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
 import milky_way.service.*;
-import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,7 +34,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import java.net.URI;
 import java.util.Optional;
-import java.util.Set;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
@@ -261,33 +258,6 @@ public class AuthController {
         return ResponseEntity.ok(Notification.CHANGED_PASSWORD_SUCCESSFUL.getValue());
     }
 
-    @PostMapping("/add-roles")
-    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_WRITE')")
-    public ResponseEntity<?> addRoles(@RequestBody RoleRequest roleRequest){
-        UserResponse response = roleService.addRolesToUser(roleRequest);
-        return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/update-roles")
-    @PreAuthorize("hasRole('ADMIN') and hasAnyAuthority('ADMIN_WRITE', 'ADMIN_DELETE')")
-    public ResponseEntity<?> updateRoles(@RequestBody RoleRequest roleRequest){
-        UserResponse response = roleService.updateRolesForUser(roleRequest);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/add-permissions")
-    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_WRITE')")
-    public ResponseEntity<?> addPermissions(@RequestBody PermissionRequest permissionRequest){
-        RoleResponse response = permissionService.addPermissionsToRole(permissionRequest);
-        return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/add-permissions")
-    @PreAuthorize("hasRole('ADMIN') and hasAnyAuthority('ADMIN_WRITE', 'ADMIN_DELETE')")
-    public ResponseEntity<?> updatePermissions(@RequestBody PermissionRequest permissionRequest){
-        RoleResponse response = permissionService.updatePermissionsForRole(permissionRequest);
-        return ResponseEntity.ok(response);
-    }
 }
 
 

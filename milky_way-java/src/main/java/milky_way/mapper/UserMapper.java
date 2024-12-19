@@ -1,12 +1,10 @@
 package milky_way.mapper;
 
-import milky_way.dto.request.role.RoleRequest;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.response.auth.LinkGoogleResponse;
 import milky_way.dto.response.auth.LoginResponse;
-import milky_way.dto.response.role.RoleResponse;
+import milky_way.dto.response.user.UserChangeStatusResponse;
 import milky_way.dto.response.user.UserResponse;
-import milky_way.entity.Role;
 import milky_way.entity.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
@@ -19,4 +17,5 @@ public interface UserMapper {
     LinkGoogleResponse toAuthResponse(User user);
     UserResponse toUserResponse(User user);
     LoginResponse toLoginResponse(User user);
+    UserChangeStatusResponse toChangeStatus(User user);
 }

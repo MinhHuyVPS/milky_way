@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import milky_way.dto.response.permission.PermissionResponse;
 import milky_way.repository.TokenBlacklistRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,10 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -36,8 +34,9 @@ public class JwtTokenProvider {
     @Autowired
     private TokenBlacklistRepository tokenBlacklistRepository;
 
-    public String generateToken(String id ,String email, Set<Role> roles) {
+    public String generateToken(String id ,String email, Set<Role> roles, Set<PermissionResponse> permissions) {
         String rolesJson;
+        String permissionsJson;
         try {
             if (roles == null || roles.isEmpty()) {
                 rolesJson = "[]";
@@ -47,12 +46,21 @@ public class JwtTokenProvider {
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList()));
             }
+            if (permissions == null || permissions.isEmpty()) {
+                permissionsJson = "[]";
+            } else {
+                permissionsJson = objectMapper.writeValueAsString(permissions.stream()
+                        .map(PermissionResponse::getName)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()));
+            }
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
         return Jwts.builder()
                 .setSubject(email)
                 .claim("roles", rolesJson)
+                .claim("permissions", permissionsJson)
                 .claim("type", "access")
                 .claim("id", id)
                 .setIssuedAt(new Date())
@@ -61,8 +69,9 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String generateRefreshToken(String id ,String email, Set<Role> roles) {
+    public String generateRefreshToken(String id ,String email, Set<Role> roles, Set<PermissionResponse> permissions) {
         String rolesJson;
+        String permissionsJson;
         try {
             if (roles == null || roles.isEmpty()) {
                 rolesJson = "[]";
@@ -72,12 +81,21 @@ public class JwtTokenProvider {
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList()));
             }
+            if (permissions == null || permissions.isEmpty()) {
+                permissionsJson = "[]";
+            } else {
+                permissionsJson = objectMapper.writeValueAsString(permissions.stream()
+                        .map(PermissionResponse::getName)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()));
+            }
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
         return Jwts.builder()
                 .setSubject(email)
                 .claim("roles", rolesJson)
+                .claim("permissions", permissionsJson)
                 .claim("type", "refresh")
                 .claim("id", id)
                 .setIssuedAt(new Date())
@@ -87,23 +105,35 @@ public class JwtTokenProvider {
     }
 
     public List<GrantedAuthority> getAuthoritiesFromJWT(String token) {
-//        System.out.println("getAuthoritiesFromJWT - Token: " + token);
         Claims claims = getClaimsFromJWT(token);
-//        System.out.println("getAuthoritiesFromJWT - Claims: " + claims);
         String rolesJson = claims.get("roles", String.class);
-//        System.out.println("getAuthoritiesFromJWT - Roles JSON: " + rolesJson);
-        List<String> roles = null;
+        List<String> roles = new ArrayList<>();
         try {
-            roles = objectMapper.readValue(rolesJson, new TypeReference<List<String>>() {});
-//            System.out.println("getAuthoritiesFromJWT - Parsed Roles: " + roles);
+            if (rolesJson != null) {
+                roles = objectMapper.readValue(rolesJson, new TypeReference<List<String>>() {});
+            }
         } catch (JsonProcessingException e) {
-//            System.err.println("getAuthoritiesFromJWT - Failed to parse roles: " + e.getMessage());
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to parse roles", e);
         }
-        return roles.stream()
+        String permissionsJson = claims.get("permissions", String.class);
+        List<String> permissions = new ArrayList<>();
+        try {
+            if (permissionsJson != null) {
+                permissions = objectMapper.readValue(permissionsJson, new TypeReference<List<String>>() {});
+            }
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse permissions", e);
+        }
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.addAll(roles.stream()
                 .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+                .toList());
+        authorities.addAll(permissions.stream()
+                .map(SimpleGrantedAuthority::new)
+                .toList());
+        return authorities;
     }
+
 
     public String getEmailFromJWT(String token) {
         return getClaimsFromJWT(token).getSubject();
@@ -119,9 +149,7 @@ public class JwtTokenProvider {
     }
 
     public Claims getClaimsFromJWT(String token) {
-//        System.out.println("getClaimsFromJWT - Token: " + token);
         if (token.split("\\.").length != 3) {
-//            System.err.println("getClaimsFromJWT - Invalid token format. Token must contain exactly 2 periods.");
             throw new IllegalArgumentException("Invalid JWT token format. Token must contain exactly 2 periods.");
         }
         try {
@@ -130,10 +158,8 @@ public class JwtTokenProvider {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-//            System.out.println("getClaimsFromJWT - Parsed Claims: " + claims);
             return claims;
         } catch (Exception e) {
-//            System.out.println("Failed to get claims from token: " + e.getMessage());
             throw e;
         }
     }
@@ -145,7 +171,6 @@ public class JwtTokenProvider {
     public boolean validateToken(String authToken) {
         try {
             if (isTokenBlacklisted(authToken)) {
-//                System.out.println("Token is blacklisted.");
                 return false;
             }
             Jwts.parser()
@@ -153,7 +178,6 @@ public class JwtTokenProvider {
                     .parseClaimsJws(authToken);
             return true;
         } catch (Exception e) {
-//            System.out.println("Token validation failed: " + e.getMessage());
             return false;
         }
     }

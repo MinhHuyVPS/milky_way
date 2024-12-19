@@ -35,6 +35,9 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         String accessToken = tokenService.extractAccessToken(request);
         String id = jwtTokenProvider.getIdFromJWT(accessToken);
         User user = userRepository.findByEmailAndId(email, id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (!user.getStatus()) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
         return new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword(), user.getAuthorities());
     }
 

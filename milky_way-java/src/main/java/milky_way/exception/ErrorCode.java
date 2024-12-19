@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    ACCOUNT_LOCKED(423, "Account locked", HttpStatus.LOCKED),
     INVALID_REQUEST(404, "Target user ID cannot be null or empty", HttpStatus.NOT_FOUND),
     INVALID_OLD_PASSWORD(412, "Invalid old password", HttpStatus.BAD_REQUEST),
     INVALID_OTP(411, "invalid otp",  HttpStatus.NOT_FOUND),
@@ -26,7 +27,7 @@ public enum ErrorCode {
     OAUTH2_CONFIGURATION(414,"OAuth2 configuration is missing information.", HttpStatus.REQUEST_URI_TOO_LONG),
     OAUTH2_REDIRECT_FAILED(410,"An error occurred while generating the redirect URI.", HttpStatus.BAD_REQUEST),
     USER_NOT_FOUND(404, "User Not Found", HttpStatus.NOT_FOUND),
-    ROLE_NOT_FOUND(420, "RoleRequest not found", HttpStatus.NOT_FOUND),
+    ROLE_NOT_FOUND(420, "UserRequestRole not found", HttpStatus.NOT_FOUND),
     USER_ALREADY_EXISTS(409, "User Already Exists", HttpStatus.CONFLICT),
     USERNAME_INVALID(400, "Username is invalid", HttpStatus.BAD_REQUEST),
     PASSWORD_INVALID(400, "Password is invalid", HttpStatus.BAD_REQUEST),

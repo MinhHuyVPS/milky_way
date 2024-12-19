@@ -1,10 +1,8 @@
 package milky_way.service;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
-import milky_way.dto.request.role.RoleRequest;
+import milky_way.dto.request.user.UserRequestRole;
 import milky_way.dto.response.user.UserResponse;
-import milky_way.entity.Permission;
 import milky_way.entity.Role;
 import milky_way.entity.User;
 import milky_way.exception.AppException;
@@ -16,8 +14,6 @@ import milky_way.repository.UserRepository;
 import milky_way.utils.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.HashSet;
 import java.util.Set;
 
 @Service
@@ -42,13 +38,13 @@ public class RoleService {
     private PermissionRepository permissionRepository;
 
     @Transactional
-    public UserResponse addRolesToUser(RoleRequest roleRequest) {
-        if (roleRequest.getId() == null || roleRequest.getId().trim().isEmpty()) {
+    public UserResponse addRolesToUser(UserRequestRole userRequestRole) {
+        if (userRequestRole.getId() == null || userRequestRole.getId().trim().isEmpty()) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
-        User user = userRepository.findById(roleRequest.getId())
+        User user = userRepository.findById(userRequestRole.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        Set<Role> rolesToAdd = roleRepository.findByNameIn(roleRequest.getName());
+        Set<Role> rolesToAdd = roleRepository.findByNameIn(userRequestRole.getName());
         if (rolesToAdd.isEmpty()) {
             throw new AppException(ErrorCode.ROLE_NOT_FOUND);
         }
@@ -58,13 +54,13 @@ public class RoleService {
     }
 
     @Transactional
-    public UserResponse updateRolesForUser(RoleRequest roleRequest) {
-        if (roleRequest.getId() == null || roleRequest.getId().trim().isEmpty()) {
+    public UserResponse updateRolesForUser(UserRequestRole userRequestRole) {
+        if (userRequestRole.getId() == null || userRequestRole.getId().trim().isEmpty()) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
-        User user = userRepository.findById(roleRequest.getId())
+        User user = userRepository.findById(userRequestRole.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        Set<Role> newRoles = roleRepository.findByNameIn(roleRequest.getName());
+        Set<Role> newRoles = roleRepository.findByNameIn(userRequestRole.getName());
         if (newRoles.isEmpty()) {
             throw new AppException(ErrorCode.ROLE_NOT_FOUND);
         }

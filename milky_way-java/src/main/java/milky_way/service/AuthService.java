@@ -1,27 +1,26 @@
 package milky_way.service;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import milky_way.dto.request.user.UserRequest;
 import milky_way.dto.request.user.UserRequestLogin;
 import milky_way.dto.response.auth.*;
+import milky_way.dto.response.permission.PermissionResponse;
 import milky_way.dto.response.session.SessionResponse;
 import milky_way.dto.response.user.UserProfileResponse;
 import milky_way.dto.response.user.UserResponse;
+import milky_way.entity.Permission;
 import milky_way.entity.Role;
 import milky_way.entity.Session;
 import milky_way.entity.User;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
 import milky_way.mapper.UserMapper;
+import milky_way.repository.PermissionRepository;
 import milky_way.repository.RoleRepository;
 import milky_way.repository.UserRepository;
-import milky_way.utils.JwtTokenProvider;
-import milky_way.utils.Notification;
-import milky_way.utils.OtpStorage;
-import milky_way.utils.UserRole;
+import milky_way.utils.*;
 import milky_way.utils.cookie.JwtAuthenticationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
@@ -41,6 +40,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -114,7 +114,16 @@ public class AuthService {
     private TokenService tokenService;
 
     @Autowired
+    private RoleService roleService;
+
+    @Autowired
     private JwtAuthenticationUtils jwtAuthenticationUtils;
+
+    @Autowired
+    private PermissionRepository permissionRepository;
+
+    @Autowired
+    private PermissionService permissionService;
 
     @Transactional
     public UserResponse registerUser(UserRequest userRequest) {
@@ -135,6 +144,14 @@ public class AuthService {
                             .name(UserRole.USER.getValue())
                             .description(Notification.REGISTER.getValue())
                             .build();
+                    roleRepository.save(newRole);
+                    Set<String> permissionNames = new HashSet<>(Arrays.asList(
+                            Permissions.USER_READ.getValue(),
+                            Permissions.USER_WRITE.getValue(),
+                            Permissions.USER_DELETE.getValue()
+                    ));
+                    Set<Permission> userPermissions = new HashSet<>(permissionRepository.findByNameIn(permissionNames));
+                    newRole.setPermissions(userPermissions);
                     return roleRepository.save(newRole);
                 });
         user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
@@ -150,8 +167,12 @@ public class AuthService {
             throw new AppException(ErrorCode.PASSWORD_INCORRECT);
         }
         Set<Role> roles = user.get().getRoles();
-        String accessToken = jwtTokenProvider.generateToken(user.get().getId() ,user.get().getEmail(), roles);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getId() ,user.get().getEmail(), roles);
+        Set<String> roleIds = roles.stream()
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+        Set<PermissionResponse> permissions = permissionService.findPermissionsByRolesIn(roleIds);
+        String accessToken = jwtTokenProvider.generateToken(user.get().getId() ,user.get().getEmail(), roles, permissions);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.get().getId() ,user.get().getEmail(), roles, permissions);
         redisTokenService.saveAccessToken(user.get().getEmail(), accessToken);
         redisTokenService.saveRefreshToken(user.get().getEmail(), refreshToken);
         tokenService.deleteRefreshTokens(user.get());
@@ -178,7 +199,11 @@ public class AuthService {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
         }
         Set<Role> roles = user.get().getRoles();
-        String newAccessToken = jwtTokenProvider.generateToken(id ,email, roles);
+        Set<String> roleIds = roles.stream()
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+        Set<PermissionResponse> permissions = permissionService.findPermissionsByRolesIn(roleIds);
+        String newAccessToken = jwtTokenProvider.generateToken(id ,email, roles, permissions);
         RefreshResponse refreshResponse = new RefreshResponse();
         refreshResponse.setAccessToken(newAccessToken);
         Optional<Session> currentSession = sessionService.getSession(email);
@@ -262,8 +287,12 @@ public class AuthService {
         sessionService.invalidateAllSessions(user.getEmail());
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
-        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), googleEmail, roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(),googleEmail, roles);
+        Set<String> roleIds = roles.stream()
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+        Set<PermissionResponse> permissions = permissionService.findPermissionsByRolesIn(roleIds);
+        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), googleEmail, roles, permissions);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(),googleEmail, roles, permissions);
         redisTokenService.saveAccessToken(user.getEmail(), newAccessToken);
         redisTokenService.saveRefreshToken(user.getEmail(), newRefreshToken);
         tokenService.deleteRefreshTokens(user);
@@ -413,8 +442,12 @@ public class AuthService {
         sessionService.invalidateAllSessions(user.getEmail());
         Session newSession = sessionService.createSession(user);
         Set<Role> roles = user.getRoles();
-        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), email, roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(),email, roles);
+        Set<String> roleIds = roles.stream()
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+        Set<PermissionResponse> permissions = permissionService.findPermissionsByRolesIn(roleIds);
+        String newAccessToken = jwtTokenProvider.generateToken(user.getId(), email, roles, permissions);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(),email, roles, permissions);
         redisTokenService.saveAccessToken(user.getEmail(), newAccessToken);
         redisTokenService.saveRefreshToken(user.getEmail(), newRefreshToken);
         tokenService.deleteRefreshTokens(user);
