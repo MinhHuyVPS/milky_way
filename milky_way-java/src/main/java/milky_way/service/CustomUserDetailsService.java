@@ -27,6 +27,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException{
         User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (Boolean.FALSE.equals(user.getStatus())) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
         Set<Role> roles = user.getRoles();
         Set<Permission> permissions = new HashSet<>();
         for (Role role : roles) {

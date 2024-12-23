@@ -19,7 +19,7 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private String status;
+    private boolean status = true;
     private Long totalPrice;
     @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;

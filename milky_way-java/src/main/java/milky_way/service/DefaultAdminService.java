@@ -31,6 +31,7 @@ public class DefaultAdminService {
                 User admin = new User();
                 admin.setUsername("MinhHuy");
                 admin.setEmail("ducminhhuy99tbvn4@gmail.com");
+                admin.setStatus(true);
                 admin.setPassword(passwordEncoder.encode("Ducthihoi4869!"));
                 if (admin.getRoles() == null) {
                     admin.setRoles(new HashSet<>());

@@ -18,6 +18,6 @@ public class UserRequest {
     private String lastname;
     private String phone;
     private String address;
-    private String status;
+    private Boolean status;
     private LocalDate birthday;
 }

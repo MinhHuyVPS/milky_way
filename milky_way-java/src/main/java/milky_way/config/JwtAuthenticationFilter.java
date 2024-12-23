@@ -3,12 +3,11 @@ package milky_way.config;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import milky_way.entity.Role;
+import milky_way.exception.AppException;
+import milky_way.exception.ErrorCode;
 import milky_way.service.CustomUserDetailsService;
-import milky_way.utils.CustomUserDetails;
 import milky_way.utils.JwtTokenProvider;
 import milky_way.utils.Notification;
 import milky_way.utils.cookie.JwtAuthenticationUtils;
@@ -72,7 +71,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void handleToken(String email, String token) {
         List<GrantedAuthority> authorities = jwtTokenProvider.getAuthoritiesFromJWT(token);
-        CustomUserDetails userDetails = new CustomUserDetails(email, "", authorities);
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+        if (!userDetails.isEnabled()) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authenticationToken);
