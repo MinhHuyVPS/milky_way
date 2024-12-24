@@ -22,8 +22,9 @@ import java.util.Map;
 public class GlobalExceptionHandler {
     // Xử lý AppException
     @ExceptionHandler(AppException.class)
-    public ResponseEntity<String> handleAppException(AppException appException){
-        return ResponseEntity.status(appException.getHttpStatus()).body(appException.getMessage());
+    public ResponseEntity<ErrorResponse> handleAppException(AppException appException){
+        ErrorResponse errorResponse = new ErrorResponse(ErrorCode.ACCESS_DENIED.getMessage(), ErrorCode.ACCESS_DENIED);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
     }
 
     // Xử lý AccessDeniedException (lỗi không có quyền)

@@ -24,6 +24,7 @@ public class Product {
     private String description;
     private Long price;
     private Long stock;
+    private String image;
     private LocalDateTime createAt = LocalDateTime.now();
     private LocalDateTime updateAt;
     @ManyToOne
@@ -43,4 +44,6 @@ public class Product {
     private Set<OrderItem> orderItems;
     @OneToMany(mappedBy = "products", cascade = CascadeType.ALL)
     private Set<CartItem> cartItems;
+    @OneToOne(mappedBy = "products", cascade = CascadeType.ALL)
+    private ProductDetail productDetail;
 }
