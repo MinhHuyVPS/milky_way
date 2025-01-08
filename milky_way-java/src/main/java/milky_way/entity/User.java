@@ -69,6 +69,8 @@ public class User {
     private Seller sellers;
     @OneToMany(mappedBy = "users")
     private Set<Session> sessions;
+    @OneToMany(mappedBy = "users")
+    private Set<Token> tokens;
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
                 .flatMap(role -> role.getPermissions().stream())
@@ -76,7 +78,4 @@ public class User {
                 .distinct()
                 .toList();
     }
-    @OneToMany(mappedBy = "users")
-    private Set<Token> tokens;
-
 }
