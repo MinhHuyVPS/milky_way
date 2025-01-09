@@ -18,12 +18,12 @@ public class Session {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private LocalDateTime createdAt = LocalDateTime.now();
-    private LocalDateTime expiresAt;
+    private LocalDateTime createdDate = LocalDateTime.now();
+    private LocalDateTime expiresDate;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+        return LocalDateTime.now().isAfter(expiresDate);
     }
 }

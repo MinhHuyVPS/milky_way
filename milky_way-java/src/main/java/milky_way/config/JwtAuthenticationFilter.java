@@ -7,9 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
-import milky_way.service.CustomUserDetailsService;
-import milky_way.utils.JwtTokenProvider;
-import milky_way.utils.Notification;
+import milky_way.service.config.CustomUserDetailsService;
+import milky_way.utils.config.JwtTokenProvider;
+import milky_way.utils.enums.Notification;
 import milky_way.utils.cookie.JwtAuthenticationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,7 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 @Component

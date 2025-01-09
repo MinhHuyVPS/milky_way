@@ -11,19 +11,9 @@ import java.util.Set;
 public class UserUpdateRequest {
     private String username;
     private String email;
-    private String password;
     private String firstname;
     private String lastname;
     private String phone;
     private String address;
-    private Boolean status;
     private LocalDate birthday;
-    private LocalDateTime delete_at;
-    private LocalDateTime create_at;
-    private LocalDateTime update_at;
-    private Set<Role> roles;
-    private Set<Order> orders;
-    private Set<ProductReview> productReviews;
-    private Cart cart;
-    private Seller sellers;
 }

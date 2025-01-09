@@ -22,9 +22,9 @@ public class ContentManagement {
     private String pageName;
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime createdDate;
+    private LocalDateTime updatedDate;
     @ManyToOne
-    @JoinColumn(name = "created_by", nullable = false)
-    private User creator;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User users;
 }

@@ -39,13 +39,13 @@ public class User {
     private String address;
     private Boolean status;
     private LocalDate birthday;
-    private LocalDateTime deleteAt;
+    private LocalDateTime deleteDate;
     @Column(updatable = false)
-    private LocalDateTime createAt = LocalDateTime.now();
-    private LocalDateTime updateAt;
+    private LocalDateTime createDate = LocalDateTime.now();
+    private LocalDateTime updateDate;
     @PreUpdate
     protected void onUpdate() {
-        updateAt = LocalDateTime.now();
+        updateDate = LocalDateTime.now();
     }
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -67,10 +67,18 @@ public class User {
     private Cart cart;
     @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
     private Seller sellers;
-    @OneToMany(mappedBy = "users")
+    @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
     private Set<Session> sessions;
-    @OneToMany(mappedBy = "users")
+    @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
     private Set<Token> tokens;
+    @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
+    private Set<AnalyticsReport> analyticsReports;
+    @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
+    private LoyaltyProgram loyaltyPrograms;
+    @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
+    private Set<Notification> notifications;
+    @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
+    private Set<ContentManagement> contentManagements;
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
                 .flatMap(role -> role.getPermissions().stream())

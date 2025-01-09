@@ -25,8 +25,8 @@ public class Product {
     private Long price;
     private Long stock;
     private String image;
-    private LocalDateTime createAt = LocalDateTime.now();
-    private LocalDateTime updateAt;
+    private LocalDateTime createDate = LocalDateTime.now();
+    private LocalDateTime updateDate;
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     private Category categories;
@@ -46,4 +46,6 @@ public class Product {
     private Set<CartItem> cartItems;
     @OneToOne(mappedBy = "products", cascade = CascadeType.ALL)
     private ProductDetail productDetail;
+    @OneToOne(mappedBy = "products", cascade = CascadeType.ALL)
+    private Inventory inventories;
 }

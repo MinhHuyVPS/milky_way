@@ -1,6 +1,5 @@
 package milky_way.controller;
 
-import milky_way.dto.request.auth.ChangePasswordRequest;
 import milky_way.dto.request.role.RoleRequestPermission;
 import milky_way.dto.request.user.ChangeStatusRequest;
 import milky_way.dto.request.user.UserRequestRole;
@@ -9,9 +8,9 @@ import milky_way.dto.response.user.UserChangeStatusResponse;
 import milky_way.dto.response.user.UserResponse;
 import milky_way.exception.AppException;
 import milky_way.exception.ErrorCode;
-import milky_way.service.PermissionService;
-import milky_way.service.RoleService;
-import milky_way.service.UserService;
+import milky_way.service.permission.PermissionService;
+import milky_way.service.role.RoleService;
+import milky_way.service.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;

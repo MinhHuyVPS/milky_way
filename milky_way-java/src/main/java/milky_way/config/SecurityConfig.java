@@ -1,7 +1,7 @@
 package milky_way.config;
 import milky_way.repository.RoleRepository;
 import milky_way.repository.UserRepository;
-import milky_way.utils.CustomAuthenticationProvider;
+import milky_way.utils.config.CustomAuthenticationProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

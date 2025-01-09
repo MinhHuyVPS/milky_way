@@ -24,8 +24,8 @@ public class Order {
     @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;
     private String paymentStatus;
-    private LocalDateTime createAt = LocalDateTime.now();
-    private LocalDateTime updateAt;
+    private LocalDateTime createDate = LocalDateTime.now();
+    private LocalDateTime updateDate;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;
@@ -33,4 +33,6 @@ public class Order {
     private Set<OrderItem> orderItems;
     @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
     private Set<Payment> payments;
+    @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
+    private Set<Ship> ships;
 }

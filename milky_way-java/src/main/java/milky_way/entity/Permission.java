@@ -25,12 +25,12 @@ public class Permission {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdDate = LocalDateTime.now();
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private LocalDateTime updatedDate;
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = java.time.LocalDateTime.now();
+        updatedDate = java.time.LocalDateTime.now();
     }
     public Permission(String id, String name) {
         this.id = id;

@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import milky_way.utils.ReportType;
+import milky_way.utils.enums.ReportType;
 
 import java.time.LocalDateTime;
 
@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Table(name = "analytics_reports")
-public class AnalyticsAndReporting {
+public class AnalyticsReport {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -25,9 +25,10 @@ public class AnalyticsAndReporting {
     @Column(name = "report_type", nullable = false)
     private ReportType reportType;
     private LocalDateTime generatedDate;
+    private LocalDateTime updateDate;
     @Column(name = "report_data", columnDefinition = "TEXT")
     private String reportData;
     @ManyToOne
-    @JoinColumn(name = "creator_id", nullable = false)
-    private User creator;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User users;
 }

@@ -5,8 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import milky_way.utils.NotificationStatus;
-import milky_way.utils.NotificationType;
+import milky_way.utils.enums.NotificationStatus;
+import milky_way.utils.enums.NotificationType;
 
 import java.time.LocalDateTime;
 
@@ -22,7 +22,7 @@ public class Notification {
     private String id;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private User users;
     @Enumerated(EnumType.STRING)
     @Column(name = "notification_type", nullable = false)
     private NotificationType notificationType;
@@ -31,5 +31,5 @@ public class Notification {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private NotificationStatus status;
-    private LocalDateTime createdAt;
+    private LocalDateTime createdDate = LocalDateTime.now();
 }

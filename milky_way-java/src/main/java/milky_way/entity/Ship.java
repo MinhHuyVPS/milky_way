@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import milky_way.utils.ShippingStatus;
+import milky_way.utils.enums.ShippingStatus;
 
 import java.time.LocalDateTime;
 
@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "shipping")
-public class Shipping {
+@Table(name = "ships")
+public class Ship {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -33,7 +33,6 @@ public class Shipping {
     private LocalDateTime estimatedDeliveryDate;
     private LocalDateTime actualDeliveryDate;
     private Double shippingCost;
-
     @Column(name = "carrier", nullable = false)
     private String carrier;
 }

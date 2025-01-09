@@ -20,7 +20,7 @@ public class Inventory {
     private String id;
     @OneToOne
     @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    private Product products;
     @Column(name = "stock_level", nullable = false)
     private Integer stockLevel;
     @Column(name = "restock_threshold", nullable = false)

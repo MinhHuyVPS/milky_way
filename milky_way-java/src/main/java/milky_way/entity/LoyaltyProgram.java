@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import milky_way.utils.MembershipLevel;
+import milky_way.utils.enums.MembershipLevel;
 
 import java.time.LocalDateTime;
 
@@ -21,7 +21,7 @@ public class LoyaltyProgram {
     private String id;
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private User users;
     @Column(name = "points", nullable = false)
     private Integer points;
     @Enumerated(EnumType.STRING)

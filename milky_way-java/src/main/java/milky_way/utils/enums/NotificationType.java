@@ -1,4 +1,4 @@
-package milky_way.utils;
+package milky_way.utils.enums;
 
 import lombok.Getter;
 

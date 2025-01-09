@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import milky_way.utils.DiscountType;
+import milky_way.utils.enums.DiscountType;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -15,8 +15,8 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "promotions")
-public class Promotion {
+@Table(name = "voucher")
+public class Voucher {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;

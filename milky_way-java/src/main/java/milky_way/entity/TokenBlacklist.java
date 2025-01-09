@@ -27,5 +27,5 @@ public class TokenBlacklist {
     private LocalDateTime expiryDate;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdDate = LocalDateTime.now();
 }

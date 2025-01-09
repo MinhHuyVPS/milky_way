@@ -22,8 +22,8 @@ public class Token {
     private String id;
     @Column(name = "refresh_token", columnDefinition = "TEXT")
     private String refreshToken;
-    private LocalDateTime createAt = LocalDateTime.now();
-    private LocalDateTime updatedAt;
+    private LocalDateTime createDate = LocalDateTime.now();
+    private LocalDateTime updatedDate;
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;

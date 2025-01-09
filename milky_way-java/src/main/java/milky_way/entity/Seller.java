@@ -25,9 +25,9 @@ public class Seller {
     private String taxId;
     private String contactEmail;
     private String contactPhone;
-    private LocalDateTime createdAt = LocalDateTime.now();
-    private LocalDateTime deleteAt;
-    private LocalDateTime updateAt;
+    private LocalDateTime createdDate = LocalDateTime.now();
+    private LocalDateTime deleteDate;
+    private LocalDateTime updateDate;
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;

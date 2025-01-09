@@ -21,12 +21,5 @@ public class UserUpdateResponse {
     private String address;
     private Boolean status;
     private LocalDate birthday;
-    private LocalDateTime delete_at;
-    private LocalDateTime create_at;
     private LocalDateTime update_at;
-    private Set<Role> roles;
-    private Set<Order> orders;
-    private Set<ProductReview> productReviews;
-    private Cart cart;
-    private Seller sellers;
 }
