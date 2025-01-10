@@ -32,7 +32,7 @@ public class Product {
     private Category categories;
     @ManyToOne
     @JoinColumn(name = "seller_id", nullable = false)
-    private Seller sellers;
+    private Shop sellers;
     @OneToMany(mappedBy = "products", cascade = CascadeType.ALL)
     private Set<ProductReview> productReviews;
     @ManyToMany
