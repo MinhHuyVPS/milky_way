@@ -27,6 +27,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException{
         User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if(user.getDeleteDate() != null){
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
         if (Boolean.FALSE.equals(user.getStatus())) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }

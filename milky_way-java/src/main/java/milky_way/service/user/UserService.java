@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.swing.text.html.Option;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,9 +64,13 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    public UserUpdateResponse update(HttpServletRequest request, UserUpdateRequest userUpdateRequest){
-        String token = tokenBlacklistService.getJwtFromRequest(request);
-        String id = jwtTokenProvider.getIdFromJWT(token);
+    public UserResponse getById(String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toUserResponse(user);
+    }
+
+    public UserUpdateResponse update(String id, UserUpdateRequest userUpdateRequest){
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() ->new AppException(ErrorCode.USER_NOT_FOUND));
         existingUser.setUsername(userUpdateRequest.getUsername());
@@ -77,5 +82,18 @@ public class UserService {
         existingUser.setBirthday(userUpdateRequest.getBirthday());
         User updateUser = userRepository.save(existingUser);
         return userMapper.toUserUpdateResponse(updateUser);
+    }
+
+    public void deleted(String id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        userRepository.delete(user);
+    }
+
+    public void deleteAddFieldDeletedAtUser(String id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setDeleteDate(LocalDateTime.now());
+        userRepository.save(user);
     }
 }

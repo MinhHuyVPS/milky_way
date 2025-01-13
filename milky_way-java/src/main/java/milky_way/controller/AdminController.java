@@ -17,6 +17,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("api/v1/admin")
@@ -69,5 +71,25 @@ public class AdminController {
         }catch (AppException e){
          throw new AppException(ErrorCode.ACCESS_DENIED);
         }
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_READ')")
+    public ResponseEntity<List<UserResponse>> getAllUsers(){
+        return ResponseEntity.ok(userService.getAll());
+    }
+
+    @DeleteMapping("/{id}/remove")
+    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_DELETE')")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        userService.deleted(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_DELETE')")
+    public ResponseEntity<Void> deleteAddFieldDeletedAtUser(@PathVariable String id) {
+        userService.deleteAddFieldDeletedAtUser(id);
+        return ResponseEntity.noContent().build();
     }
 }

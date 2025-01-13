@@ -176,6 +176,9 @@ public class AuthService {
         if (!passwordEncoder.matches(userRequest.getPassword(), user.get().getPassword())) {
             throw new AppException(ErrorCode.PASSWORD_INCORRECT);
         }
+        if(user.get().getDeleteDate() != null){
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
         Set<Role> roles = user.get().getRoles();
         Set<String> roleIds = roles.stream()
                 .map(Role::getId)
@@ -207,6 +210,9 @@ public class AuthService {
         Optional<User> user = userRepository.findByEmailAndId(email, id);
         if (user.isEmpty()) {
             throw new AppException(ErrorCode.EMAIL_NOT_EXIST);
+        }
+        if(user.get().getDeleteDate() != null){
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
         }
         Set<Role> roles = user.get().getRoles();
         Set<String> roleIds = roles.stream()
@@ -253,6 +259,9 @@ public class AuthService {
         }
         User user = userRepository.findByEmailAndId(email, id)
                 .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXIST));
+        if(user.getDeleteDate() != null){
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
         String userEmail = getUserEmail(user, email);
         if (!userEmail.equals(email)) {
             throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
@@ -317,8 +326,10 @@ public class AuthService {
 
     private User findOrGoogleCreateUser(String googleEmail, String googleId) {
         Optional<User> existingUser = userRepository.findByGoogleEmail(googleEmail);
-
         if (existingUser.isPresent()) {
+            if(existingUser.get().getDeleteDate() != null){
+                throw new AppException(ErrorCode.USER_NOT_FOUND);
+            }
             User user = existingUser.get();
             linkGoogleOAuthProviderIfNecessary(user, googleId);
             return user;
@@ -343,12 +354,21 @@ public class AuthService {
         user.setGoogleEmail(googleEmail);
         if (encryptedGoogleId != null) user.setGoogleId(encryptedGoogleId);
         Role userRole = roleRepository.findByName(UserRole.USER.getValue())
-                .orElseGet(() -> roleRepository.save(
-                        Role.builder()
-                                .name(UserRole.USER.getValue())
-                                .description(Notification.REGISTER.getValue())
-                                .build()
-                ));
+                .orElseGet(() -> {
+                    Role newRole = Role.builder()
+                            .name(UserRole.USER.getValue())
+                            .description(Notification.REGISTER.getValue())
+                            .build();
+                    roleRepository.save(newRole);
+                    Set<String> permissionNames = new HashSet<>(Arrays.asList(
+                            Permissions.USER_READ.getValue(),
+                            Permissions.USER_WRITE.getValue(),
+                            Permissions.USER_DELETE.getValue()
+                    ));
+                    Set<Permission> userPermissions = new HashSet<>(permissionRepository.findByNameIn(permissionNames));
+                    newRole.setPermissions(userPermissions);
+                    return roleRepository.save(newRole);
+                });
         user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         userRepository.save(user);
         return user;
@@ -473,6 +493,9 @@ public class AuthService {
     private User findOrFaceBookCreateUser(String email, String facebookId, String facebookName, String avatar) {
         Optional<User> existingUser = userRepository.findByEmail(email);
         if (existingUser.isPresent()) {
+            if(existingUser.get().getDeleteDate() != null){
+                throw new AppException(ErrorCode.USER_NOT_FOUND);
+            }
             User user = existingUser.get();
             linkFaceBookOAuthProviderIfNecessary(user, facebookId, facebookName, avatar);
             return user;
@@ -507,12 +530,21 @@ public class AuthService {
         user.setAvatar(avatar);
         if (facebookId != null) user.setFacebookId(encryptedFacebookId);
         Role userRole = roleRepository.findByName(UserRole.USER.getValue())
-                .orElseGet(() -> roleRepository.save(
-                        Role.builder()
-                                .name(UserRole.USER.getValue())
-                                .description(Notification.REGISTER.getValue())
-                                .build()
-                ));
+                .orElseGet(() -> {
+                    Role newRole = Role.builder()
+                            .name(UserRole.USER.getValue())
+                            .description(Notification.REGISTER.getValue())
+                            .build();
+                    roleRepository.save(newRole);
+                    Set<String> permissionNames = new HashSet<>(Arrays.asList(
+                            Permissions.USER_READ.getValue(),
+                            Permissions.USER_WRITE.getValue(),
+                            Permissions.USER_DELETE.getValue()
+                    ));
+                    Set<Permission> userPermissions = new HashSet<>(permissionRepository.findByNameIn(permissionNames));
+                    newRole.setPermissions(userPermissions);
+                    return roleRepository.save(newRole);
+                });
         user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
         return userRepository.save(user);
     }
@@ -605,7 +637,9 @@ public class AuthService {
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new AppException(ErrorCode.INVALID_OLD_PASSWORD);
         }
-
+        if(user.getDeleteDate() != null){
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
