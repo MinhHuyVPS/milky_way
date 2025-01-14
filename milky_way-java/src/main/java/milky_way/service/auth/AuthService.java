@@ -20,7 +20,7 @@ import milky_way.mapper.UserMapper;
 import milky_way.repository.PermissionRepository;
 import milky_way.repository.RoleRepository;
 import milky_way.repository.UserRepository;
-import milky_way.service.config.RedisTokenService;
+import milky_way.service.config.RedisService;
 import milky_way.service.permission.PermissionService;
 import milky_way.service.role.RoleService;
 import milky_way.service.session.SessionService;
@@ -118,7 +118,7 @@ public class AuthService {
     private JavaMailSender mailSender;
 
     @Autowired
-    private RedisTokenService redisTokenService;
+    private RedisService redisTokenService;
 
     @Autowired
     private TokenService tokenService;

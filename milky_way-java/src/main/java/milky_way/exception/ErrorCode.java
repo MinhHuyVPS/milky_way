@@ -27,6 +27,7 @@ public enum ErrorCode {
     OAUTH2_CONFIGURATION(414,"OAuth2 configuration is missing information.", HttpStatus.REQUEST_URI_TOO_LONG),
     OAUTH2_REDIRECT_FAILED(410,"An error occurred while generating the redirect URI.", HttpStatus.BAD_REQUEST),
     USER_NOT_FOUND(404, "User Not Found", HttpStatus.NOT_FOUND),
+    CATEGORY_NOT_FOUND(404, "Category not found", HttpStatus.NOT_FOUND),
     ROLE_NOT_FOUND(420, "UserRequestRole not found", HttpStatus.NOT_FOUND),
     USER_ALREADY_EXISTS(409, "User Already Exists", HttpStatus.CONFLICT),
     USERNAME_INVALID(400, "Username is invalid", HttpStatus.BAD_REQUEST),

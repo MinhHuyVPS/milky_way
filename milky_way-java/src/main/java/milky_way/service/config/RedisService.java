@@ -4,11 +4,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class RedisTokenService {
+public class RedisService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -39,5 +40,33 @@ public class RedisTokenService {
         if (refreshTokenKeys != null && !refreshTokenKeys.isEmpty()) {
             redisTemplate.delete(refreshTokenKeys);
         }
+    }
+
+    public <T> void setList(String key, List<T> data, long ttlInSeconds) {
+        redisTemplate.opsForValue().set(key, data, ttlInSeconds, TimeUnit.SECONDS);
+    }
+
+    public <T> List<T> getList(String key, Class<T> type) {
+        Object data = redisTemplate.opsForValue().get(key);
+        if (data != null) {
+            return (List<T>) data;
+        }
+        return null;
+    }
+
+    public void delete(String key) {
+        redisTemplate.delete(key);
+    }
+
+    public <T> T get(String key, Class<T> type) {
+        Object data = redisTemplate.opsForValue().get(key);
+        if (type.isInstance(data)) {
+            return type.cast(data);
+        }
+        return null;
+    }
+
+    public <T> void set(String key, T data, long ttlInSeconds) {
+        redisTemplate.opsForValue().set(key, data, ttlInSeconds, TimeUnit.SECONDS);
     }
 }
