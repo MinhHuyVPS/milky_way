@@ -41,7 +41,7 @@ public class CategoryController {
 
     @PostMapping("/categories")
     @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_WRITE')")
-    public ResponseEntity<?> register(@Valid @RequestBody CategoryRequest categoryRequest) {
+    public ResponseEntity<?> create(@Valid @RequestBody CategoryRequest categoryRequest) {
         try {
             CategoryResponse categoryResponse = categoryService.create(categoryRequest);
             return ResponseEntity.ok(categoryResponse);
@@ -56,7 +56,7 @@ public class CategoryController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_WRITE')")
-    public ResponseEntity<CategoryResponse> updateUser(HttpServletRequest request, @RequestBody CategoryRequest categoryRequest) {
+    public ResponseEntity<CategoryResponse> update(HttpServletRequest request, @RequestBody CategoryRequest categoryRequest) {
         String token = tokenBlacklistService.getJwtFromRequest(request);
         String id = jwtTokenProvider.getIdFromJWT(token);
         return ResponseEntity.ok(categoryService.update(id, categoryRequest));
@@ -64,7 +64,7 @@ public class CategoryController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') and hasAuthority('ADMIN_DELETE')")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         categoryService.remove(id);
         return ResponseEntity.noContent().build();
     }

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    PRODUCT_NOT_FOUND(404, "product not found", HttpStatus.NOT_FOUND),
     ACCOUNT_LOCKED(423, "Account locked", HttpStatus.LOCKED),
     INVALID_REQUEST(404, "Target user ID cannot be null or empty", HttpStatus.NOT_FOUND),
     INVALID_OLD_PASSWORD(412, "Invalid old password", HttpStatus.BAD_REQUEST),
