@@ -66,7 +66,7 @@ public class User {
     @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
     private Cart cart;
     @OneToOne(mappedBy = "users", cascade = CascadeType.ALL)
-    private Shop sellers;
+    private Shop shops;
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)
     private Set<Session> sessions;
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL)

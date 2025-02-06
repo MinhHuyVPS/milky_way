@@ -6,6 +6,9 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
+    NOT_SHOP_AND_CATEGORY(404, "Cannot use another shop's category", HttpStatus.NOT_FOUND),
+    SHOP_NOT_FOUND(404, "shop not found", HttpStatus.NOT_FOUND),
+    CATEGORY_ALREADY_EXISTS(404, "Category already exists", HttpStatus.NOT_FOUND),
     PRODUCT_NOT_FOUND(404, "product not found", HttpStatus.NOT_FOUND),
     ACCOUNT_LOCKED(423, "Account locked", HttpStatus.LOCKED),
     INVALID_REQUEST(404, "Target user ID cannot be null or empty", HttpStatus.NOT_FOUND),

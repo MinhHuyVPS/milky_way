@@ -31,8 +31,8 @@ public class Product {
     @JoinColumn(name = "category_id", nullable = false)
     private Category categories;
     @ManyToOne
-    @JoinColumn(name = "seller_id", nullable = false)
-    private Shop sellers;
+    @JoinColumn(name = "shop_id", nullable = false)
+    private Shop shops;
     @OneToMany(mappedBy = "products", cascade = CascadeType.ALL)
     private Set<ProductReview> productReviews;
     @ManyToMany

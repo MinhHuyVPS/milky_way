@@ -23,5 +23,10 @@ public class Category {
     private String description;
     @OneToMany(mappedBy = "categories", cascade = CascadeType.ALL)
     private Set<Product> products;
-
+    @ManyToOne
+    @JoinColumn(name = "shop_id")
+    private Shop shops;
+    @ManyToOne
+    @JoinColumn(name = "parent_id")
+    private Category parent;
 }

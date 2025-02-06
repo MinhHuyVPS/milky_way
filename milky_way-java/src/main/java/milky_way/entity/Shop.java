@@ -31,6 +31,8 @@ public class Shop {
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User users;
-    @OneToMany(mappedBy = "sellers", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "shops", cascade = CascadeType.ALL)
     private Set<Product> products;
+    @OneToMany(mappedBy = "shops", cascade = CascadeType.ALL)
+    private Set<Category> categories;
 }
