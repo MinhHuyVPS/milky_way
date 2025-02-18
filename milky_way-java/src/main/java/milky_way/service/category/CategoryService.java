@@ -41,12 +41,15 @@ public class CategoryService {
     }
 
     public CategoryOfShopResponse createCategoriesShop(CategoryOfShopRequest categoryOfShopRequest){
-        boolean exists = categoryRepository.existsByNameAndShop(categoryOfShopRequest.getName(), categoryOfShopRequest.getShop().getId());
+        Shop shop = shopRepository.findById(categoryOfShopRequest.getShop().getId())
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        if (categoryOfShopRequest.getShop() == null) {
+            throw new AppException(ErrorCode.SHOP_NOT_PROVIDED);
+        }
+        boolean exists = categoryRepository.existsByNameAndShops(categoryOfShopRequest.getName(), categoryOfShopRequest.getShop());
         if (exists) {
             throw new AppException(ErrorCode.CATEGORY_ALREADY_EXISTS);
         }
-        Shop shop = shopRepository.findById(categoryOfShopRequest.getShop().getId())
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
         Category parent = null;
         if (categoryOfShopRequest.getParent() != null) {
             parent = categoryRepository.findById(categoryOfShopRequest.getParent().getId())

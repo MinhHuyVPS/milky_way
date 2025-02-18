@@ -16,13 +16,21 @@ class AuthService
     public function __construct()
     {
         $this->client = new Client();
-        $this->javaBaseUrl = rtrim(env('JAVA_API_URL', 'http://localhost:8080/'), '/') . '/api/v1/auth';
+        $this->javaBaseUrl = rtrim(env('JAVA_API_URL', 'http://localhost:8080'), '/') . '/api/v1/auth';
     }
 
     public function registerUser($userData) {
-        $response = $this->client->post("{$this->javaBaseUrl}/register", [
-            'json' => $userData
-        ]);
-        return json_decode($response->getBody()->getContents(), true);
+        try {
+            $response = $this->client->post("{$this->javaBaseUrl}/register", [
+                'json' => $userData
+            ]);
+            return json_decode($response->getBody()->getContents(), true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            return [
+                'error' => 'Request failed',
+                'message' => $e->getMessage()
+            ];
+        }
     }
+    
 }

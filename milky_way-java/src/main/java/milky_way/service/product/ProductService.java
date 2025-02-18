@@ -13,12 +13,13 @@ import milky_way.mapper.ProductMapper;
 import milky_way.repository.CategoryRepository;
 import milky_way.repository.ProductRepository;
 import milky_way.repository.ShopRepository;
+import milky_way.utils.ProductSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.lang.module.ResolutionException;
 import java.time.LocalDateTime;
 
 @Service
@@ -37,7 +38,21 @@ public class ProductService {
     private CategoryRepository categoryRepository;
 
     public Page<Product> search(String name, Long price, Long stock, LocalDateTime createDate, Pageable pageable){
-        return productRepository.search(name, price, stock, createDate, pageable);
+        Specification<Product> spec = Specification.where(null);
+        if (name != null) {
+            spec = spec.and(ProductSpecification.hasName(name));
+        }
+        if (price != null) {
+            spec = spec.and(ProductSpecification.hasPrice(price));
+        }
+        if (stock != null) {
+            spec = spec.and(ProductSpecification.hasStock(stock));
+        }
+        if (createDate != null) {
+            spec = spec.and(ProductSpecification.hasCreateDate(createDate));
+        }
+        spec = ProductSpecification.applySorting(spec, pageable);
+        return productRepository.findAll(spec, pageable);
     }
 
     public Product getById(String id){
