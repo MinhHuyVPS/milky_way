@@ -16,12 +16,14 @@ class CorsMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
-
-        // Add CORS headers to the response
         $response->headers->set('Access-Control-Allow-Origin', '*');
         $response->headers->set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PUT, DELETE');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With, Application');
-        
+        $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            if ($request->getMethod() === "OPTIONS") {
+            $response->setStatusCode(200);
+        }
+    
         return $response;
     }
 }

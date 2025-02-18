@@ -37,7 +37,7 @@ import java.net.URI;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:8000")
 @RequestMapping("api/v1/auth")
 @Validated
 public class AuthController {

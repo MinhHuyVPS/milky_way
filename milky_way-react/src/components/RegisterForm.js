@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { registerUser } from '../services/authService';
+
 const RegisterForm = () => {
   const [formData, setFormData] = useState({
     username: '',
@@ -138,8 +139,5 @@ const RegisterForm = () => {
     </form>
   );
 };
-
-
-
 
 export default RegisterForm;
