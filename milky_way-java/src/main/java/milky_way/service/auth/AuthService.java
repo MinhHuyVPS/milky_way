@@ -200,9 +200,9 @@ public class AuthService {
     }
 
     @Transactional
-    public RefreshResponse refreshToken(HttpServletRequest request) {
+    public RefreshResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = jwtAuthenticationUtils.extractRefreshTokenFromCookie(request);
-        if (!jwtTokenProvider.validateToken(refreshToken) && jwtTokenProvider.isTokenExpired(refreshToken) && !jwtTokenProvider.isRefreshToken(refreshToken)) {
+        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         String email = jwtTokenProvider.getEmailFromJWT(refreshToken);
@@ -219,7 +219,9 @@ public class AuthService {
                 .map(Role::getId)
                 .collect(Collectors.toSet());
         Set<PermissionResponse> permissions = permissionService.findPermissionsByRolesIn(roleIds);
+        tokenBlacklistService.blacklistToken(refreshToken, jwtTokenProvider.getExpiryDateFromToken(refreshToken));
         String newAccessToken = jwtTokenProvider.generateToken(id ,email, roles, permissions);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(id ,email, roles, permissions);
         RefreshResponse refreshResponse = new RefreshResponse();
         refreshResponse.setAccessToken(newAccessToken);
         Optional<Session> currentSession = sessionService.getSession(email);
@@ -233,6 +235,7 @@ public class AuthService {
         if (refreshResponse.getSessionResponse() == null) {
             throw new AppException(ErrorCode.INVALID_RESPONSE_CONTENT);
         }
+        jwtAuthenticationUtils.addRefreshTokenCookie(newRefreshToken, response);
         return refreshResponse;
     }
 

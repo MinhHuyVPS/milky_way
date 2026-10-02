@@ -113,9 +113,9 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> refreshToken(HttpServletRequest request) {
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         try {
-            RefreshResponse authResponse = authService.refreshToken(request);
+            RefreshResponse authResponse = authService.refreshToken(request, response);
             return ResponseEntity.ok(authResponse);
         } catch (AppException e) {
             return ResponseEntity.status(e.getErrorCode().getHttpStatus())
